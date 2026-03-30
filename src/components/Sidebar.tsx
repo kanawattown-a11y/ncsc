@@ -41,7 +41,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-[#111827] border-l border-[#1F2937] flex flex-col transition-all duration-300">
       <div className="h-20 flex items-center justify-center border-b border-[#1F2937] p-4">
         <Link href="/dashboard" className="flex items-center space-x-3 space-x-reverse text-white">
-          <img src="/logo.png" alt="NCSC Logo" className="w-10 h-10 object-contain" />
+          <img src="/logo.png" alt="NCSC" className="w-10 h-10 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/Public/logo.png' }} />
           <div className="flex flex-col">
             <span className="font-bold text-lg tracking-wider uppercase leading-none">N C S C</span>
             <span className="text-[10px] text-[#10B981] font-mono mt-0.5 uppercase tracking-tighter">Security System</span>

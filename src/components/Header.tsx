@@ -13,7 +13,7 @@ export default function Header() {
           <Menu className="w-6 h-6" />
         </button>
         <div className="flex items-center space-x-2 space-x-reverse">
-          <img src="/logo.png" alt="NCSC" className="w-8 h-8 object-contain" />
+          <img src="/logo.png" alt="NCSC" className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/Public/logo.png' }} />
           <span className="text-gray-300 font-bold tracking-wide uppercase text-sm">نظام التصريح الأمني</span>
         </div>
       </div>
