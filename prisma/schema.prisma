@@ -35,6 +35,10 @@ model User {
   messagesReceived ChatMessage[] @relation("MessageReceiver")
   editRequests     EditRequest[]
   approvedRequests EditRequest[] @relation("RequestApprover")
+
+  notificationsSent     Notification[]            @relation("NotificationSender")
+  notificationsReceived Notification[]            @relation("NotificationTarget")
+  readReceipts          NotificationReadReceipt[]
 }
 
 model Person {
@@ -163,4 +167,36 @@ model ChatMessage {
 
   sender     User     @relation("MessageSender", fields: [senderId], references: [id])
   receiver   User?    @relation("MessageReceiver", fields: [receiverId], references: [id])
+}
+
+enum NotificationPriority {
+  NORMAL
+  URGENT
+}
+
+model Notification {
+  id           String               @id @default(cuid())
+  title        String
+  content      String
+  priority     NotificationPriority @default(NORMAL)
+  senderId     String
+  targetRole   Role?                // If set -> all users of role (broadcast)
+  targetUserId String?              // If set -> only this user (direct)
+  createdAt    DateTime             @default(now())
+
+  sender       User                 @relation("NotificationSender", fields: [senderId], references: [id])
+  targetUser   User?                @relation("NotificationTarget", fields: [targetUserId], references: [id])
+  receipts     NotificationReadReceipt[]
+}
+
+model NotificationReadReceipt {
+  id             String       @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId])
 }

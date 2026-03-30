@@ -52,9 +52,9 @@ export default function RegisterPage() {
         <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-[#2563EB] rounded-full mix-blend-screen filter blur-[100px] opacity-10 animate-pulse delay-1000"></div>
       </div>
 
-      <div className="w-full max-w-lg bg-[#111827] border border-[#1F2937] rounded-2xl p-8 shadow-2xl relative z-10 backdrop-blur-xl">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-[#0B0F19] p-4 rounded-full border border-[#10B981] shadow-[0_0_20px_rgba(16,185,129,0.4)] relative">
+      <div className="w-full max-w-md bg-[#111827] border border-[#1F2937] rounded-2xl p-5 sm:p-8 shadow-2xl relative z-10 backdrop-blur-xl mx-3 sm:mx-0">
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <div className="bg-[#0B0F19] p-3 sm:p-4 rounded-full border border-[#10B981] shadow-[0_0_20px_rgba(16,185,129,0.4)] relative">
             <img
               src="/logo.png"
               alt="NCSC"

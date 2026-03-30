@@ -68,26 +68,27 @@ export default function ChatPage() {
   const isAdmin = (session?.user as any)?.role === "ADMIN";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="bg-[#111827] border border-[#1F2937] rounded-t-xl p-4 flex flex-col md:flex-row justify-between items-center z-10 shadow-md gap-4">
-        <div className="flex items-center space-x-3 space-x-reverse">
-          <div className="bg-[#10B981]/20 p-2 rounded-full border border-[#10B981]/50 animate-pulse">
-            <Radio className="w-5 h-5 text-[#10B981]" />
+    <div className="flex flex-col h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)]">
+      <div className="bg-[#111827] border border-[#1F2937] rounded-t-xl p-3 sm:p-4 flex justify-between items-center z-10 shadow-md gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="bg-[#10B981]/20 p-1.5 sm:p-2 rounded-full border border-[#10B981]/50 animate-pulse shrink-0">
+            <Radio className="w-4 h-4 sm:w-5 sm:h-5 text-[#10B981]" />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-widest">غرفة عمليات الاتصال الشامل</h2>
-            <p className="text-xs text-[#10B981] font-mono">تشفير ميداني نَشِط - جميع البيانات مشفرة عسكرياً</p>
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-xl font-bold text-white tracking-widest truncate">غرفة عمليات الاتصال</h2>
+            <p className="text-[9px] sm:text-xs text-[#10B981] font-mono hidden xs:block">تشفير ميداني نَشِط</p>
           </div>
         </div>
         {isAdmin && (
-           <div className="bg-[#EF4444]/10 border border-[#EF4444]/50 px-3 py-1.5 rounded-lg flex items-center space-x-2 space-x-reverse text-[#EF4444]">
-              <ShieldAlert className="w-4 h-4 animate-pulse" />
-              <span className="text-xs font-bold">وضع المراقبة الشاملة مفعل (تقرأ كل ما يرسل سرا وعلنا)</span>
+           <div className="bg-[#EF4444]/10 border border-[#EF4444]/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 text-[#EF4444] shrink-0">
+              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
+              <span className="text-[9px] sm:text-xs font-bold hidden sm:block">وضع المراقبة الشاملة مفعل</span>
+              <span className="text-[9px] font-bold sm:hidden">مراقبة</span>
            </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-[#0B0F19] border-x border-[#1F2937] p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto bg-[#0B0F19] border-x border-[#1F2937] p-3 sm:p-6 space-y-3 sm:space-y-4">
         {loading && (
           <div className="flex justify-center items-center h-full text-[#2563EB]">
              <span className="w-8 h-8 border-4 border-[#2563EB]/30 border-t-[#2563EB] rounded-full animate-spin"></span>
@@ -116,7 +117,7 @@ export default function ChatPage() {
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div 
-                className={`max-w-[85%] md:max-w-[75%] rounded-lg p-4 relative overflow-hidden backdrop-blur-sm shadow-md border 
+                className={`max-w-[90%] sm:max-w-[80%] rounded-lg p-3 sm:p-4 relative overflow-hidden backdrop-blur-sm shadow-md border 
                 ${isMe 
                   ? 'bg-[#2563EB]/10 border-[#2563EB]/50 text-white rounded-br-none' 
                   : (isSenderAdmin 
@@ -127,22 +128,21 @@ export default function ChatPage() {
                 ${isPrivate ? 'ring-2 ring-[#F59E0B]' : ''}
                 `}
               >
-                <div className="flex justify-between items-start mb-2 space-x-4 space-x-reverse">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded flex items-center gap-1 ${isSenderAdmin ? 'bg-[#EF4444] text-white animate-pulse' : 'bg-[#1F2937] text-gray-400'}`}>
+                <div className="flex justify-between items-center mb-1.5 gap-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-[10px] sm:text-xs font-bold font-mono px-1.5 py-0.5 rounded flex items-center gap-1 ${isSenderAdmin ? 'bg-[#EF4444] text-white animate-pulse' : 'bg-[#1F2937] text-gray-400'}`}>
                       {isSenderAdmin ? <ShieldAlert className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
                       {msg.sender}
                     </span>
                     {isPrivate && (
-                      <span className="text-[10px] bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50 px-1 py-0.5 rounded flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> خاص
-                        {msg.receiver && ` إلى ${msg.receiver}`}
+                      <span className="text-[9px] bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/50 px-1 py-0.5 rounded flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" /> خاص
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-gray-500 font-mono tracking-widest min-w-[50px] text-left">{msg.time}</span>
+                  <span className="text-[9px] text-gray-600 font-mono shrink-0">{msg.time}</span>
                 </div>
-                <p className="text-sm md:text-base leading-relaxed break-words">{msg.text}</p>
+                <p className="text-sm leading-relaxed break-words">{msg.text}</p>
               </div>
             </div>
           );
@@ -150,22 +150,22 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="bg-[#111827] border border-[#1F2937] rounded-b-xl p-4">
-        <form onSubmit={handleSend} className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 md:space-x-reverse">
+      <div className="bg-[#111827] border border-[#1F2937] rounded-b-xl p-3 sm:p-4 shrink-0">
+        <form onSubmit={handleSend} className="flex gap-2">
           <input
             type="text"
             value={input}
             disabled={!!errorMsg}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={errorMsg ? "تم إيقاف الإرسال بسبب خطأ المشغل" : "أدخل رسالة الغرفة العامة..."}
-            className="flex-1 bg-[#0B0F19] border border-[#1F2937] text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#10B981] focus:outline-none placeholder-gray-600 transition-shadow disabled:opacity-50"
+            placeholder={errorMsg ? "تعذّر الاتصال" : "أدخل رسالتك..."}
+            className="flex-1 bg-[#0B0F19] border border-[#1F2937] text-white rounded-lg px-3 sm:px-4 py-2.5 focus:ring-2 focus:ring-[#10B981] focus:outline-none placeholder-gray-600 transition-shadow disabled:opacity-50 text-sm min-w-0"
           />
           <button 
             type="submit"
             disabled={!input.trim() || !!errorMsg}
-            className="bg-[#10B981] hover:bg-[#059669] text-white p-3 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(16,185,129,0.3)] min-w-[4rem]"
+            className="bg-[#10B981] hover:bg-[#059669] text-white p-2.5 sm:p-3 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(16,185,129,0.3)] shrink-0 w-11 sm:w-12"
           >
-            <Send className="w-5 h-5 rtl:scale-x-[-1]" />
+            <Send className="w-4 h-4 sm:w-5 sm:h-5 rtl:scale-x-[-1]" />
           </button>
         </form>
       </div>

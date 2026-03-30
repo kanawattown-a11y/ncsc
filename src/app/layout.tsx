@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import ActivityObserver from "@/components/ActivityObserver";
@@ -11,6 +11,19 @@ export const metadata: Metadata = {
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "NCSC",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0B0F19",
 };
 
 export default function RootLayout({

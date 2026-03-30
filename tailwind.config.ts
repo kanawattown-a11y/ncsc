@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: "475px", // Extra breakpoint for fine mobile control
+      },
       colors: {
         background: "#0B0F19",
         foreground: "#FFFFFF",

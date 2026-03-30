@@ -22,6 +22,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
   const [editingRecords, setEditingRecords] = useState<any[]>([]);
+  const [editingDocuments, setEditingDocuments] = useState<any[]>([]);
   const [configs, setConfigs] = useState<any>({ WARRANT_TYPES: [], BRANCHES: [], SEVERITIES: [] });
 
   useEffect(() => {
@@ -129,6 +130,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
     setSelectedFiles([]);
     setPortraitIndex(null);
     setEditingRecords(person.records || []);
+    setEditingDocuments(person.documents || []);
     setFormData({
       nationalId: person.nationalId,
       fullName: person.fullName,
@@ -148,6 +150,19 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
     });
     setSelectedPersonId(person.id);
     setShowEditModal(true);
+  };
+
+  const handleDeleteEditingDocument = async (docId: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا المستند؟")) return;
+    try {
+      const res = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+      if (res.ok) {
+        setEditingDocuments(docs => docs.filter(d => d.id !== docId));
+        showToast("تم حذف المستند بنجاح.", "success");
+      }
+    } catch (err) {
+      showToast("فشل حذف المستند.", "error");
+    }
   };
 
   const handleUpdatePerson = async (e: React.FormEvent) => {
@@ -318,89 +333,141 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
   return (
     <>
       {/* Tools Layer */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <button onClick={() => setShowAddModal(true)} className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow-lg transition-colors">
-          <PlusCircle className="w-5 h-5" /> بناء ملف مواطن
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <button onClick={() => setShowAddModal(true)} className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold shadow-lg transition-colors text-sm">
+          <PlusCircle className="w-4 h-4" /> بناء ملف مواطن
         </button>
-        <button onClick={handleExportCSV} className="bg-[#111827] border border-[#1F2937] hover:bg-[#1F2937] text-gray-300 px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-md active:scale-95">
-          <Download className="w-5 h-5 text-[#F59E0B]" /> تصدير السجل العام
+        <button onClick={handleExportCSV} className="bg-[#111827] border border-[#1F2937] hover:bg-[#1F2937] text-gray-300 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-md active:scale-95 text-sm">
+          <Download className="w-4 h-4 text-[#F59E0B]" /> تصدير السجل
         </button>
         <div className="flex-1 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="بحث سريع بالاسم أو الرقم الوطني..."
-            className="w-full bg-[#0B0F19] text-white border border-[#1F2937] px-10 py-3 rounded-lg focus:ring-2 focus:ring-[#2563EB] focus:outline-none placeholder-gray-600"
+            placeholder="بحث بالاسم أو الرقم الوطني..."
+            className="w-full bg-[#0B0F19] text-white border border-[#1F2937] px-10 py-2.5 rounded-lg focus:ring-2 focus:ring-[#2563EB] focus:outline-none placeholder-gray-600 text-sm"
           />
         </div>
       </div>
 
-      {/* Database View Table */}
+      {/* Database View */}
       <div className="bg-[#111827] border border-[#1F2937] rounded-xl overflow-hidden shadow-lg">
         {filtered.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 font-mono">لا توجد سجلات. جرب إضافة ملفات أو استوردها للشبكة الموحدة.</div>
+          <div className="p-8 text-center text-gray-500 font-mono text-sm">لا توجد سجلات. جرب إضافة ملفات أو استوردها للشبكة الموحدة.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-right">
-              <thead className="bg-[#0B0F19] border-b border-[#1F2937] text-gray-400 text-sm">
-                <tr>
-                  <th className="px-6 py-4 font-semibold whitespace-nowrap">الرقم الوطني</th>
-                  <th className="px-6 py-4 font-semibold">الاسم الكامل</th>
-                  <th className="px-6 py-4 font-semibold text-center">التصنيف</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1F2937]">
-                {filtered.map((person) => {
-                  const isBanned = person.records && person.records.some((r: any) => r.active);
-                  return (
-                    <tr key={person.id} className="hover:bg-[#1F2937]/30 transition-colors group">
-                      <td className="px-6 py-4 font-mono text-gray-300 font-bold">{person.nationalId}</td>
-                      <td
-                        className="px-6 py-4 font-bold text-white cursor-pointer hover:text-[#2563EB] transition-colors flex items-center gap-2 group/name"
-                        onClick={() => { setActiveProfile(person); setShowProfileModal(true); }}
-                      >
-                        {person.fullName}
-                        <Eye className="w-4 h-4 opacity-0 group-hover/name:opacity-100 transition-opacity" />
-                      </td>
-                      <td className="px-6 py-4 text-center">
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-right">
+                <thead className="bg-[#0B0F19] border-b border-[#1F2937] text-gray-400 text-xs">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">الرقم الوطني</th>
+                    <th className="px-4 py-3 font-semibold">الاسم الكامل</th>
+                    <th className="px-4 py-3 font-semibold text-center">التصنيف</th>
+                    <th className="px-4 py-3 font-semibold text-center">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1F2937]">
+                  {filtered.map((person) => {
+                    const isBanned = person.records && person.records.some((r: any) => r.active);
+                    return (
+                      <tr key={person.id} className="hover:bg-[#1F2937]/30 transition-colors group">
+                        <td className="px-4 py-3 font-mono text-gray-300 font-bold text-sm">{person.nationalId}</td>
+                        <td
+                          className="px-4 py-3 font-bold text-white cursor-pointer hover:text-[#2563EB] transition-colors"
+                          onClick={() => { setActiveProfile(person); setShowProfileModal(true); }}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {person.fullName}
+                            <Eye className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-400" />
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {!isBanned ? (
+                            <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30">نظيف</span>
+                          ) : (
+                            <span className="text-[#EF4444] bg-[#EF4444]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#EF4444]/30">مطلوب ({person.records.filter((r:any)=>r.active).length})</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleEditClick(person)}
+                              className="text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] px-2.5 py-1.5 rounded transition-colors flex items-center gap-1.5 text-xs"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" /> {role === "ADMIN" ? "تعديل" : "طلب تعديل"}
+                            </button>
+                            <button
+                              onClick={() => { setActiveProfile(person); setShowStudyModal(true); }}
+                              className="text-blue-400 hover:text-white bg-blue-600/10 border border-blue-600/30 hover:bg-blue-600 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5 text-xs font-bold"
+                            >
+                              <Files className="w-3.5 h-3.5" /> دراسة أمنية
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y divide-[#1F2937]">
+              {filtered.map((person) => {
+                const isBanned = person.records && person.records.some((r: any) => r.active);
+                return (
+                  <div key={person.id} className={`p-4 ${isBanned ? 'border-r-2 border-r-red-500' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => { setActiveProfile(person); setShowProfileModal(true); }}
+                          className="text-right w-full"
+                        >
+                          <p className="font-bold text-white text-base leading-tight">{person.fullName}</p>
+                          <p className="font-mono text-gray-500 text-xs mt-0.5">{person.nationalId}</p>
+                        </button>
+                      </div>
+                      <div className="shrink-0">
                         {!isBanned ? (
-                          <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded text-xs border border-[#10B981]/30">معدوم القيود</span>
+                          <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30 block">نظيف</span>
                         ) : (
-                          <span className="text-[#EF4444] bg-[#EF4444]/10 px-2 py-1 rounded text-xs border border-[#EF4444]/30">مطلوب ({person.records.length})</span>
+                          <span className="text-[#EF4444] bg-[#EF4444]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#EF4444]/30 block">مطلوب ({person.records.filter((r:any)=>r.active).length})</span>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-left flex justify-end gap-2 items-center">
-                        <button
-                          onClick={() => handleEditClick(person)}
-                          className="text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs"
-                        >
-                          <Edit2 className="w-4 h-4" /> {role === "ADMIN" ? "تعديل مباشرة" : "طلب تعديل"}
-                        </button>
-                        <button
-                          onClick={() => { setActiveProfile(person); setShowStudyModal(true); }}
-                          className="text-blue-400 hover:text-white bg-blue-600/10 border border-blue-600/30 hover:bg-blue-600 px-3 py-1.5 rounded transition-all flex items-center gap-2 text-xs font-bold"
-                        >
-                          <Files className="w-4 h-4" /> الدراسة الأمنية
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleEditClick(person)}
+                        className="flex-1 text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] py-2 rounded transition-colors flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> {role === "ADMIN" ? "تعديل" : "طلب تعديل"}
+                      </button>
+                      <button
+                        onClick={() => { setActiveProfile(person); setShowStudyModal(true); }}
+                        className="flex-1 text-blue-400 bg-blue-600/10 border border-blue-600/30 py-2 rounded flex items-center justify-center gap-1.5 text-xs font-bold"
+                      >
+                        <Files className="w-3.5 h-3.5" /> دراسة أمنية
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
       {/* Add Person Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowAddModal(false)} className="absolute top-4 left-4 text-gray-500 hover:text-white"><X className="w-6 h-6" /></button>
-            <h2 className="text-2xl font-bold text-white mb-6 border-b border-[#1F2937] pb-4 flex items-center gap-2"><PlusCircle className="text-[#2563EB]" /> إنشاء ملف مواطن جديد</h2>
-
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full sm:max-w-2xl shadow-2xl relative max-h-[95dvh] sm:max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="sticky top-0 bg-[#111827] z-10 flex items-center justify-between pb-4 border-b border-[#1F2937] mb-4">
+              <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2"><PlusCircle className="text-[#2563EB] w-5 h-5" /> إنشاء ملف مواطن جديد</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2 text-gray-500 hover:text-white hover:bg-[#1F2937] rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+            </div>
             <form onSubmit={handleCreatePerson} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
@@ -516,11 +583,15 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                       <input required placeholder="وصف التدخل الجرمي أو مصدر البرقية..." className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.reason} onChange={e => setRecordData(p => ({ ...p, reason: e.target.value }))} />
                     </div>
                     <div>
-                      <label className="text-sm text-[#EF4444] block mb-1">الدرجة</label>
-                      <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.severity} onChange={e => setRecordData(p => ({ ...p, severity: e.target.value }))}>
-                        <option value="HIGH">عالية (توقيف مباشر)</option>
-                        <option value="MEDIUM">متوسطة (تدقيق أمني)</option>
-                        <option value="LOW">منخفضة (مراقبة)</option>
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">الدرجة</label>
+                      <select 
+                        className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" 
+                        value={recordData.severity} 
+                        onChange={e => setRecordData(p => ({ ...p, severity: e.target.value }))}
+                      >
+                        {configs.SEVERITIES?.map((s: any) => (
+                           <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -602,10 +673,12 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
 
       {/* Edit Person Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto font-sans">
-            <button onClick={() => setShowEditModal(false)} className="absolute top-4 left-4 text-gray-500 hover:text-white"><X className="w-6 h-6" /></button>
-            <h2 className="text-2xl font-bold text-white mb-6 border-b border-[#1F2937] pb-4 flex items-center gap-2"><Edit2 className="text-[#F59E0B]" /> تعديل بيانات السجل الأمني</h2>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 w-full sm:max-w-2xl shadow-2xl relative max-h-[95dvh] sm:max-h-[90vh] overflow-y-auto custom-scrollbar font-sans">
+            <div className="sticky top-0 bg-[#111827] z-10 flex items-center justify-between pb-4 border-b border-[#1F2937] mb-4">
+              <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2"><Edit2 className="text-[#F59E0B] w-5 h-5" /> تعديل بيانات السجل الأمني</h2>
+              <button onClick={() => setShowEditModal(false)} className="p-2 text-gray-500 hover:text-white hover:bg-[#1F2937] rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+            </div>
 
             <form onSubmit={handleUpdatePerson} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-right">
@@ -756,7 +829,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                             </select>
                           </div>
                           <div className="text-right">
-                            <label className="text-[10px] text-gray-500 block mb-1">درجة الخطورة</label>
+                            <label className="text-[10px] text-gray-500 block mb-1 font-bold">الدرجة</label>
                             <select
                               className="w-full bg-[#111827] text-white border border-[#1F2937] rounded p-2 text-xs"
                               value={rec.severity}
@@ -766,9 +839,9 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                                 setEditingRecords(newRecs);
                               }}
                             >
-                              <option value="HIGH">عالية (توقيف مباشر)</option>
-                              <option value="MEDIUM">متوسطة (تدقيق أمني)</option>
-                              <option value="LOW">منخفضة (مراقبة)</option>
+                              {configs.SEVERITIES?.map((s: any) => (
+                                <option key={s.value} value={s.value}>{s.label}</option>
+                              ))}
                             </select>
                           </div>
                           <div className="md:col-span-2 lg:col-span-3 text-right">
@@ -830,6 +903,69 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                   </div>
                 )}
               </div>
+
+              {/* EXISTING DOCUMENTS MANAGEMENT in Edit Modal */}
+              {editingDocuments.length > 0 && (
+                <div className="bg-[#0B0F19] border border-blue-500/20 rounded-xl p-6 mt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-blue-400 flex items-center gap-2 text-sm">
+                      <FileText className="w-4 h-4" /> المرفقات الحالية ({editingDocuments.length} ملف)
+                    </h3>
+                  </div>
+
+                  {/* Images Grid */}
+                  {editingDocuments.filter(d => d.type === 'IMAGE').length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-2">الصور المرفقة</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                        {editingDocuments.filter(d => d.type === 'IMAGE').map((doc: any) => (
+                          <div key={doc.id} className="relative group aspect-square rounded-lg overflow-hidden border border-[#1F2937] bg-[#111827]">
+                            <img 
+                              src={`/api/documents/${doc.id}/view`} 
+                              alt={doc.name} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button 
+                                type="button"
+                                onClick={() => handleDeleteEditingDocument(doc.id)}
+                                className="p-1.5 bg-red-600/80 rounded-full hover:bg-red-600 transition-colors"
+                                title="حذف الصورة"
+                              >
+                                <X className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                            <p className="absolute bottom-0 left-0 right-0 text-[7px] text-white/70 truncate px-1 py-0.5 bg-black/50">{doc.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other Files List */}
+                  {editingDocuments.filter(d => d.type !== 'IMAGE').length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-2">ملفات أخرى</p>
+                      {editingDocuments.filter(d => d.type !== 'IMAGE').map((doc: any) => (
+                        <div key={doc.id} className="flex items-center justify-between p-2 bg-[#111827] rounded-lg border border-[#1F2937] group">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText className="w-4 h-4 text-gray-500 shrink-0" />
+                            <span className="text-xs text-gray-400 truncate">{doc.name}</span>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleDeleteEditingDocument(doc.id)}
+                            className="p-1 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Multi-File Upload Section in Edit Modal */}
               <div className="bg-[#0B0F19] border border-[#1F2937] rounded-xl p-6 mt-6">

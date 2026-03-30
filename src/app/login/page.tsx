@@ -40,13 +40,13 @@ export default function LoginPage() {
         <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-[#10B981] rounded-full mix-blend-screen filter blur-[100px] opacity-10 animate-pulse delay-700"></div>
       </div>
 
-      <div className="w-full max-w-lg bg-[#111827] border border-[#1F2937] rounded-2xl p-8 shadow-2xl relative z-10 backdrop-blur-xl">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-[#0B0F19] p-4 rounded-full border border-[#2563EB] shadow-[0_0_20px_rgba(37,99,235,0.4)] relative">
+      <div className="w-full max-w-md bg-[#111827] border border-[#1F2937] rounded-2xl p-5 sm:p-8 shadow-2xl relative z-10 backdrop-blur-xl mx-3 sm:mx-0">
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <div className="bg-[#0B0F19] p-3 sm:p-4 rounded-full border border-[#2563EB] shadow-[0_0_20px_rgba(37,99,235,0.4)] relative">
             <img
               src="/logo.png"
               alt="NCSC"
-              className="w-16 h-16 object-contain"
+              className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = '/public/logo.png';
@@ -54,9 +54,9 @@ export default function LoginPage() {
             />
             <div className="absolute inset-0 rounded-full bg-[#2563EB]/10 animate-ping"></div>
           </div>
-          <h1 className="mt-6 text-3xl font-bold text-white tracking-wider text-center">النظام الأمني الوطني</h1>
-          <p className="text-gray-400 mt-2 text-sm uppercase tracking-widest font-semibold">National Criminal & Security Clearance</p>
-          <div className="h-1 w-20 bg-gradient-to-r from-[#2563EB] to-[#10B981] mt-4 rounded-full"></div>
+          <h1 className="mt-5 text-2xl sm:text-3xl font-bold text-white tracking-wider text-center">النظام الأمني الوطني</h1>
+          <p className="text-gray-400 mt-2 text-xs sm:text-sm uppercase tracking-widest font-semibold text-center">National Criminal & Security Clearance</p>
+          <div className="h-1 w-16 sm:w-20 bg-gradient-to-r from-[#2563EB] to-[#10B981] mt-3 rounded-full"></div>
         </div>
 
         {error && (

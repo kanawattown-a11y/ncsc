@@ -5,12 +5,51 @@
 @layer base {
   body {
     @apply bg-background text-foreground antialiased min-h-screen font-sans;
-    direction: rtl; /* Since it's an Arabic project */
+    direction: rtl;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  input, select, textarea, button {
+    @apply font-sans;
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #1F2937;
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+
+  /* Thin scrollbar for main content areas */
+  main::-webkit-scrollbar {
+    width: 3px;
+  }
+  main::-webkit-scrollbar-thumb {
+    background: #1F2937;
+    border-radius: 4px;
+  }
+
+  /* Safe area padding for notched phones */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
