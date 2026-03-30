@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPresignedViewUrl } from "@/lib/s3";
+import { analyzeSecurity } from "@/lib/intelligence";
 
 export async function GET(request: Request) {
   // 1. Session Protection Layer
@@ -28,10 +29,10 @@ export async function GET(request: Request) {
       },
       include: {
         records: {
-          where: { active: true },
           orderBy: { createdAt: 'desc' }
         },
         documents: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' }
         }
       }
@@ -54,10 +55,10 @@ export async function GET(request: Request) {
       })
     );
 
-    const isBanned = person.records && person.records.length > 0;
-
+    const report = analyzeSecurity(person);
+    
     return NextResponse.json({
-      status: isBanned ? "BANNED" : "CLEARED",
+      ...report,
       person: { ...person, documents: documentsWithUrls },
       records: person.records || []
     });

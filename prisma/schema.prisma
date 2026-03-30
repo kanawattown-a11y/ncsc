@@ -61,9 +61,11 @@ model Person {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime? // Soft delete
+  photoId       String?   // Source of Truth ID for portrait
+  photo         Document? @relation("PersonPortrait", fields: [photoId], references: [id])
 
   records       SecurityRecord[]
-  documents     Document[]
+  documents     Document[] @relation("PersonDocuments")
 }
 
 enum DocumentType {
@@ -81,8 +83,10 @@ model Document {
   mimeType  String?
   size      Int?         // Size in bytes
   createdAt DateTime     @default(now())
+  deletedAt DateTime?    // Soft delete support for documents
 
-  person    Person       @relation(fields: [personId], references: [id])
+  person          Person  @relation("PersonDocuments", fields: [personId], references: [id])
+  isPortraitOf    Person[] @relation("PersonPortrait")
 }
 
 enum RecordSource {

@@ -3,18 +3,23 @@
 import React, { useState, useEffect } from "react";
 import { X, Shield, FileText, User as UserIcon, MapPin, Calendar, Droplets, Briefcase, Heart, Fingerprint, ExternalLink, Download, PlusCircle, Eye, Trash2, ImageIcon } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { analyzeSecurity } from "@/lib/intelligence";
 
 interface CitizenProfileModalProps {
   person: any;
   onClose: () => void;
   onUploadClick: () => void;
+  intelligence?: any; // Optional pre-calculated report
 }
 
 const GENDER_MAP: Record<string, string> = { MALE: "ذكر", FEMALE: "أنثى" };
 const MARITAL_MAP: Record<string, string> = { SINGLE: "أعزب", MARRIED: "متزوج", DIVORCED: "مطلق", WIDOWED: "أرمل" };
 
-export default function CitizenProfileModal({ person, onClose, onUploadClick }: CitizenProfileModalProps) {
-  const isBanned = person.records && person.records.some((r: any) => r.active);
+export default function CitizenProfileModal({ person, onClose, onUploadClick, intelligence }: CitizenProfileModalProps) {
+  // Use passed intelligence or calculate locally using the unified engine
+  const report = intelligence || analyzeSecurity(person);
+  const isBanned = report.status === "BANNED";
+  
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [documents, setDocuments] = useState<any[]>(person.documents || []);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -74,8 +79,8 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick }: 
             </div>
             <div>
               <h2 className="text-2xl font-black text-white tracking-tighter">{person.fullName}</h2>
-              <p className={`text-xs font-bold uppercase tracking-widest ${isBanned ? 'text-red-500' : 'text-green-500'}`}>
-                {isBanned ? `مطلوب أمنياً - عدد القيود: ${person.records.filter((r:any)=>r.active).length}` : 'السجل الأمني: سليم ونظيف'}
+              <p className={`text-xs font-bold uppercase tracking-widest ${isBanned ? (report.riskLevel === 'HIGH' ? 'text-red-500' : 'text-amber-500') : 'text-green-500'}`}>
+                {isBanned ? (report.riskLevel === 'HIGH' ? 'توقيف فوري واحالة' : 'تدقيق أمني فعال') : 'السجل الأمني: سليم ونظيف'}
               </p>
             </div>
           </div>

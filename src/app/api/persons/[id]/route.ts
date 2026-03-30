@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordAudit } from "@/lib/audit";
+import { analyzeSecurity } from "@/lib/intelligence";
 
 export async function PATCH(
   request: Request,
@@ -20,7 +22,7 @@ export async function PATCH(
     const { 
       fullName, motherName, dateOfBirth, placeOfBirth, 
       gender, address, job, maritalStatus, bloodType, 
-      physicalMarks, photoUrl, civilRecord, civilRegistry,
+      physicalMarks, photoUrl, photoId, civilRecord, civilRegistry,
       notes, records
     } = data as any;
 
@@ -44,17 +46,17 @@ export async function PATCH(
         bloodType,
         physicalMarks,
         photoUrl,
+        photoId,
         civilRecord,
         civilRegistry,
         notes,
       },
     });
 
-    // 2. Handle SecurityRecord Updates/Creates (including branch field)
+    // 2. Handle SecurityRecord Updates/Creates
     if (records && Array.isArray(records)) {
       for (const rec of records) {
         if (rec.id) {
-          // Update existing record
           await prisma.securityRecord.update({
             where: { id: rec.id },
             data: {
@@ -67,7 +69,6 @@ export async function PATCH(
             } as any
           });
         } else {
-          // Create new record from edit form
           await prisma.securityRecord.create({
             data: {
               personId: params.id,
@@ -83,26 +84,28 @@ export async function PATCH(
       }
     }
 
-    // Log the audit action
-    await prisma.auditLog.create({
-      data: {
-        userId: (session.user as any).id,
-        action: "UPDATE_PERSON_AND_RECORDS",
-        entity: "Person",
-        entityId: params.id,
-        details: JSON.stringify({
-          message: `Updated person details and security records for ${oldPerson?.nationalId}.`,
-        })
+    // Standardized Auditing Logic
+    await recordAudit(
+      (session.user as any).id,
+      "UPDATE_PERSON",
+      "Person",
+      params.id,
+      `Updated profile for citizen ${oldPerson?.nationalId}.`,
+      { updatedFields: Object.keys(data).filter(k => k !== 'records') }
+    );
+
+    // Return full updated person with Intelligence Report
+    const updatedPerson = await (prisma as any).person.findUnique({
+      where: { id: params.id },
+      include: { 
+        records: { where: { deletedAt: null } }, 
+        documents: { where: { deletedAt: null } } 
       }
     });
 
-    // Return full updated person with records + documents for immediate UI refresh
-    const updatedPerson = await (prisma as any).person.findUnique({
-      where: { id: params.id },
-      include: { records: true, documents: true }
-    });
+    const report = analyzeSecurity(updatedPerson);
 
-    return NextResponse.json(updatedPerson);
+    return NextResponse.json({ ...report, person: updatedPerson });
   } catch (error) {
     console.error("Update person error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

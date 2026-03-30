@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getPresignedUploadUrl } from "@/lib/s3";
 import { prisma } from "@/lib/prisma";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -39,14 +40,24 @@ export async function POST(request: Request) {
       }
     });
 
-    // If set as portrait, update the Person's photoUrl with the S3 URL (Public or Presigned)
+    // If set as portrait, update the Person's photoId and URL
     if (setAsPortrait) {
-       // Note: In production, photoUrl would be a public CloudFront URL or we'd serve via a proxy.
-       // For this prototype, we store the key or the final planned URL.
        await prisma.person.update({
          where: { id: personId },
-         data: { photoUrl: `/api/documents/view/${newDoc.id}` } // Using a hypothetical view proxy
+         data: { 
+           photoId: newDoc.id,
+           photoUrl: `/api/documents/${newDoc.id}/view` 
+         }
        });
+       
+       await recordAudit(
+         (session.user as any).id,
+         "SET_PORTRAIT",
+         "Person",
+         personId,
+         `Set uploaded document ${fileName} as portrait for citizen.`,
+         { documentId: newDoc.id }
+       );
     }
 
     return NextResponse.json({ uploadUrl: url, key, documentId: newDoc.id });

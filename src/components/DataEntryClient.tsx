@@ -5,8 +5,8 @@ import { PlusCircle, Upload, Search, Edit2, FileText, CheckCircle, AlertTriangle
 import { useSession } from "next-auth/react";
 import { useToast } from "@/context/ToastContext";
 import CitizenProfileModal from "./CitizenProfileModal";
-import SecurityStudyModal from "./SecurityStudyModal";
 import { Files } from "lucide-react";
+import { analyzeSecurity } from "@/lib/intelligence";
 
 export default function DataEntryClient({ initialData }: { initialData: any[] }) {
   const [people, setPeople] = useState(initialData);
@@ -42,7 +42,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
     civilRecord: "", civilRegistry: "",
     dateOfBirth: "", placeOfBirth: "", gender: "MALE",
     address: "", job: "", maritalStatus: "SINGLE",
-    bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
+    bloodType: "", physicalMarks: "", photoUrl: "", 
+    photoId: "", notes: ""
   });
   const [recordData, setRecordData] = useState({
     type: "OTHER", reason: "", source: "INTERNAL", branch: "", severity: "MEDIUM"
@@ -114,7 +115,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
         nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
         dateOfBirth: "", placeOfBirth: "", gender: "MALE",
         address: "", job: "", maritalStatus: "SINGLE",
-        bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
+        bloodType: "", physicalMarks: "", photoUrl: "", 
+        photoId: "", notes: ""
       });
       setAddRecordMode(false);
     } catch (err: any) {
@@ -146,6 +148,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
       bloodType: person.bloodType || "",
       physicalMarks: person.physicalMarks || "",
       photoUrl: person.photoUrl || "",
+      photoId: person.photoId || "",
       notes: person.notes || ""
     });
     setSelectedPersonId(person.id);
@@ -219,7 +222,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
           nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
           dateOfBirth: "", placeOfBirth: "", gender: "MALE",
           address: "", job: "", maritalStatus: "SINGLE",
-          bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
+          bloodType: "", physicalMarks: "", photoUrl: "", 
+          photoId: "", notes: ""
         });
         setSelectedFiles([]);
         setPortraitIndex(null);
@@ -244,7 +248,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
           nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
           dateOfBirth: "", placeOfBirth: "", gender: "MALE",
           address: "", job: "", maritalStatus: "SINGLE",
-          bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
+          bloodType: "", physicalMarks: "", photoUrl: "", 
+          photoId: "", notes: ""
         });
         setSelectedFiles([]);
         setPortraitIndex(null);
@@ -371,7 +376,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 </thead>
                 <tbody className="divide-y divide-[#1F2937]">
                   {filtered.map((person) => {
-                    const isBanned = person.records && person.records.some((r: any) => r.active);
+                    const report = analyzeSecurity(person);
+                    const isBanned = report.status === "BANNED";
                     return (
                       <tr key={person.id} className="hover:bg-[#1F2937]/30 transition-colors group">
                         <td className="px-4 py-3 font-mono text-gray-300 font-bold text-sm">{person.nationalId}</td>
@@ -386,9 +392,13 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                         </td>
                         <td className="px-4 py-3 text-center">
                           {!isBanned ? (
-                            <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30">نظيف</span>
+                            <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30">سليم</span>
                           ) : (
-                            <span className="text-[#EF4444] bg-[#EF4444]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#EF4444]/30">مطلوب ({person.records.filter((r:any)=>r.active).length})</span>
+                            <span 
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${report.riskLevel === 'HIGH' ? 'text-red-500 bg-red-500/10 border-red-500/30' : 'text-amber-500 bg-amber-500/10 border-amber-500/30'}`}
+                            >
+                              {report.riskLevel === 'HIGH' ? 'توقيف' : 'تدقيق أمني'} ({person.records.filter((r:any)=>r.active).length})
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -417,9 +427,10 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
             {/* Mobile Cards */}
             <div className="sm:hidden divide-y divide-[#1F2937]">
               {filtered.map((person) => {
-                const isBanned = person.records && person.records.some((r: any) => r.active);
+                const report = analyzeSecurity(person);
+                const isBanned = report.status === "BANNED";
                 return (
-                  <div key={person.id} className={`p-4 ${isBanned ? 'border-r-2 border-r-red-500' : ''}`}>
+                  <div key={person.id} className={`p-4 ${isBanned ? (report.riskLevel === 'HIGH' ? 'border-r-2 border-r-red-500' : 'border-r-2 border-r-amber-500') : ''}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <button
@@ -432,9 +443,13 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                       </div>
                       <div className="shrink-0">
                         {!isBanned ? (
-                          <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30 block">نظيف</span>
+                          <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#10B981]/30 block">سليم</span>
                         ) : (
-                          <span className="text-[#EF4444] bg-[#EF4444]/10 px-2 py-0.5 rounded text-[10px] font-bold border border-[#EF4444]/30 block">مطلوب ({person.records.filter((r:any)=>r.active).length})</span>
+                          <span 
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border block ${report.riskLevel === 'HIGH' ? 'text-red-500 bg-red-500/10 border-red-500/30' : 'text-amber-500 bg-amber-500/10 border-amber-500/30'}`}
+                          >
+                            {report.riskLevel === 'HIGH' ? 'توقيف' : 'تدقيق'}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -927,16 +942,33 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                             <div className="absolute top-1 left-1 right-1 flex justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                               <button 
+                                type="button"
+                                onClick={() => setFormData(p => ({ 
+                                  ...p, 
+                                  photoId: doc.id,
+                                  photoUrl: `/api/documents/${doc.id}/view` 
+                                }))}
+                                className={`p-1.5 rounded-full transition-colors ${formData.photoId === doc.id || formData.photoUrl?.includes(doc.id) ? 'bg-blue-600 text-white' : 'bg-gray-800/80 text-gray-300 hover:bg-blue-600'}`}
+                                title="تحديد كصورة شخصية"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </button>
                               <button 
                                 type="button"
                                 onClick={() => handleDeleteEditingDocument(doc.id)}
                                 className="p-1.5 bg-red-600/80 rounded-full hover:bg-red-600 transition-colors"
                                 title="حذف الصورة"
                               >
-                                <X className="w-3 h-3 text-white" />
+                                <X className="w-3.5 h-3.5 text-white" />
                               </button>
                             </div>
-                            <p className="absolute bottom-0 left-0 right-0 text-[7px] text-white/70 truncate px-1 py-0.5 bg-black/50">{doc.name}</p>
+                            </div>
+                            { (formData.photoId === doc.id || formData.photoUrl?.includes(doc.id)) && (
+                              <div className="absolute top-1 right-1 bg-blue-600 text-[8px] font-bold text-white px-1 py-0.5 rounded shadow-lg z-20">PROFILE</div>
+                            )}
+                            <p className="absolute bottom-0 left-0 right-0 text-[10px] text-white/90 truncate px-1 py-0.5 bg-black/60 font-mono">{doc.name}</p>
                           </div>
                         ))}
                       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, ShieldCheck, ShieldAlert, AlertTriangle, User as UserIcon, Activity, FileText, X, Eye, Files, Clipboard } from "lucide-react";
 import SecurityStudyModal from "@/components/SecurityStudyModal";
 
@@ -15,9 +15,9 @@ export default function SearchPage() {
   const [showStudyModal, setShowStudyModal] = useState(false);
   const [configs, setConfigs] = useState<any>({ SEVERITIES: [] });
 
-  useState(() => {
+  useEffect(() => {
     fetch("/api/admin/config").then(res => res.json()).then(setConfigs).catch(console.error);
-  });
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,6 +324,7 @@ export default function SearchPage() {
       {showStudyModal && result?.person && (
         <SecurityStudyModal
           person={result.person}
+          intelligence={result}
           onClose={() => setShowStudyModal(false)}
         />
       )}
