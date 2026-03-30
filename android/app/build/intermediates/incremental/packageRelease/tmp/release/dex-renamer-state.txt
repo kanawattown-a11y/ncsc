@@ -1,0 +1,4 @@
+#Mon Mar 30 21:37:52 GST 2026
+base.0=C\:\\Users\\Dell\\Desktop\\NCSC\\android\\app\\build\\intermediates\\dex\\release\\mergeDexRelease\\classes.dex
+path.0=classes.dex
+renamed.0=classes.dex
