@@ -41,7 +41,7 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             // Zero-trust CSP policy allowing only exact origins, forbidding eval/unsafe scripts
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.amazonaws.com; font-src 'self'; connect-src 'self' https://*.amazonaws.com;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.amazonaws.com; font-src 'self'; connect-src 'self' https://*.amazonaws.com static.cloudflareinsights.com;",
           },
         ],
       },

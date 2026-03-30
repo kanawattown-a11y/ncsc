@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "النظام الأمني الوطني لإدارة التصاريح وسجلات التفتيش",
   icons: {
     icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
 };
 
