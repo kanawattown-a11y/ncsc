@@ -8,18 +8,23 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const userId = session.user.id;
+    const userId = (session.user as any).id;
     const notificationId = params.id;
 
+    if (!notificationId) {
+      return NextResponse.json({ error: "Missing notification ID" }, { status: 400 });
+    }
+
     // Check if receipt already exists
-    const existing = await prisma.notificationReadReceipt.findUnique({
+    // We use any cast here to resolve a temporary Prisma client generation discrepancy
+    const existing = await (prisma as any).notificationReadReceipt.findUnique({
       where: {
         notificationId_userId: { notificationId, userId }
       }
     });
 
     if (!existing) {
-      await prisma.notificationReadReceipt.create({
+      await (prisma as any).notificationReadReceipt.create({
         data: {
           notificationId,
           userId,

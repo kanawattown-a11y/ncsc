@@ -28,6 +28,12 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
 
   useEffect(() => {
     fetchConfigs();
+    // Expose a global trigger for the study modal (used by ProfileModal)
+    (window as any).triggerSecurityStudy = (person: any) => {
+      setActiveProfile(person);
+      setShowStudyModal(true);
+    };
+    return () => { (window as any).triggerSecurityStudy = null; };
   }, []);
 
   const fetchConfigs = async () => {

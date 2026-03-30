@@ -84,9 +84,18 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick, in
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-[#111827] text-gray-500 hover:text-white rounded-full transition-all hover:rotate-90">
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 px-2 sm:px-0">
+            {/* Show Security Study only for ADMIN and DATA_ENTRY who have access to the engine */}
+            <button
+               onClick={() => (window as any).triggerSecurityStudy?.(person)}
+               className="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+            >
+               <FileText className="w-4 h-4" /> دراسة أمنية
+            </button>
+            <button onClick={onClose} className="p-2 bg-[#111827] text-gray-500 hover:text-white rounded-full transition-all hover:rotate-90">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
