@@ -60,7 +60,18 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" }
     });
 
-    return NextResponse.json(requests);
+    // Merge current data for persons
+    const enrichedRequests = await Promise.all(requests.map(async (req) => {
+      if (req.entity === "Person" && req.entityId) {
+        const currentData = await prisma.person.findUnique({
+          where: { id: req.entityId }
+        });
+        return { ...req, currentData };
+      }
+      return req;
+    }));
+
+    return NextResponse.json(enrichedRequests);
   } catch (error) {
     console.error("Fetch requests error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

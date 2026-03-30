@@ -1,13 +1,14 @@
 "use client";
 
-import { X, Shield, FileText, User as UserIcon, MapPin, Calendar, Droplets, Briefcase, Heart, Fingerprint, ExternalLink, Download } from "lucide-react";
+import { X, Shield, FileText, User as UserIcon, MapPin, Calendar, Droplets, Briefcase, Heart, Fingerprint, ExternalLink, Download, PlusCircle } from "lucide-react";
 
 interface CitizenProfileModalProps {
   person: any;
   onClose: () => void;
+  onUploadClick: () => void;
 }
 
-export default function CitizenProfileModal({ person, onClose }: CitizenProfileModalProps) {
+export default function CitizenProfileModal({ person, onClose, onUploadClick }: CitizenProfileModalProps) {
   const isBanned = person.records && person.records.some((r: any) => r.active);
 
   return (
@@ -74,13 +75,23 @@ export default function CitizenProfileModal({ person, onClose }: CitizenProfileM
                 <InfoItem icon={<Fingerprint />} label="العلامات الفارقة" value={person.physicalMarks || "—"} />
               </div>
 
-              <div className="border-t border-[#1F2937] pt-6">
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" /> العنوان التفصيلي المسجل
-                </h4>
-                <p className="text-white text-sm leading-relaxed bg-[#111827] p-4 rounded-xl border border-[#1F2937] min-h-[60px]">
-                  {person.address || "لا يوجد عنوان مسجل في السجل الحالي."}
-                </p>
+              <div className="border-t border-[#1F2937] pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> العنوان التفصيلي المسجل
+                  </h4>
+                  <p className="text-white text-sm leading-relaxed bg-[#111827] p-4 rounded-xl border border-[#1F2937] min-h-[60px]">
+                    {person.address || "لا يوجد عنوان مسجل في السجل الحالي."}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-500" /> الوصف الأمني الحر والملاحظات
+                  </h4>
+                  <p className="text-white text-sm leading-relaxed bg-[#111827] p-4 rounded-xl border border-[#1F2937] min-h-[60px] whitespace-pre-wrap">
+                    {person.notes || "لا توجد ملاحظات وصفية إضافية لهذا السجل."}
+                  </p>
+                </div>
               </div>
 
               {/* Security Records Section */}
@@ -114,9 +125,17 @@ export default function CitizenProfileModal({ person, onClose }: CitizenProfileM
 
               {/* Documents Section */}
               <div>
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> الأرشيف الرقمي والمستندات الثبوتية
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> الأرشيف الرقمي والمستندات الثبوتية
+                  </h4>
+                  <button 
+                    onClick={onUploadClick}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-blue-600/10 hover:bg-blue-600 border border-blue-600/50 text-blue-500 hover:text-white text-[10px] font-bold rounded-lg transition-all"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" /> إضافة مستند جديد (S3)
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {person.documents?.length > 0 ? (
                     person.documents.map((doc: any) => (

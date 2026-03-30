@@ -27,16 +27,8 @@ export default function DashboardLayout({
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex flex-col flex-1 pb-4 relative">
-        <header className="h-20 flex items-center justify-between px-6 border-b border-[#1F2937] bg-[#111827] sticky top-0 z-30">
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2 text-gray-400 hover:text-white"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <Header />
-        </header>
+      <div className="flex flex-col flex-1 relative">
+        <Header onMenuClick={() => setIsSidebarOpen(true)} />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto pt-6 px-4 md:px-6">
           <div className="mx-auto max-w-7xl h-full pb-8">{children}</div>

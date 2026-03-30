@@ -3,13 +3,16 @@
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Bell, Menu } from "lucide-react";
 
-export default function Header() {
+export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { data: session } = useSession();
 
   return (
     <header className="h-16 bg-[#111827] border-b border-[#1F2937] flex items-center justify-between px-6 z-10 sticky top-0 backdrop-blur-md bg-opacity-90">
       <div className="flex items-center space-x-4 space-x-reverse">
-        <button className="lg:hidden text-gray-400 hover:text-white transition-colors">
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden text-gray-400 hover:text-white transition-colors p-2"
+        >
           <Menu className="w-6 h-6" />
         </button>
         <div className="flex items-center space-x-2 space-x-reverse">

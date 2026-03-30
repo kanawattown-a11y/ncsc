@@ -60,53 +60,104 @@ export default function AdminRequestsPage() {
            لا توجد طلبات تعديل معلقة حالياً.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-8">
           {requests.map((req) => {
-            let changes: any = {};
-            try { changes = JSON.parse(req.proposedChanges); } catch (e) { console.error("Parse error", e); }
+            let proposed: any = {};
+            try { proposed = JSON.parse(req.proposedChanges); } catch (e) { console.error("Parse error", e); }
+            
+            const current = req.currentData || {};
             
             return (
-              <div key={req.id} className="bg-[#111827] border border-[#1F2937] rounded-xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-top-4">
-                <div className="bg-[#1F2937]/50 p-4 border-b border-[#1F2937] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-[#2563EB]/20 p-2 rounded-lg">
-                       <User className="w-5 h-5 text-[#2563EB]" />
+              <div key={req.id} className="bg-[#111827] border border-[#1F2937] rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-6">
+                {/* Request Header */}
+                <div className="bg-[#1F2937]/30 p-5 px-8 border-b border-[#1F2937] flex flex-col lg:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-600/20 p-3 rounded-2xl border border-blue-500/30">
+                       <User className="w-6 h-6 text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-white font-bold text-sm">مقدم الطلب: {req.dataEntry?.username || "غير معروف"}</p>
-                      <p className="text-gray-400 text-[10px]">{new Date(req.createdAt).toLocaleString('ar-EG')}</p>
+                      <p className="text-white font-black text-base tracking-tight">طلب من: {req.dataEntry?.username || "مدخل بيانات"}</p>
+                      <p className="text-gray-500 text-[11px] font-mono uppercase tracking-widest">{new Date(req.createdAt).toLocaleString('ar-EG')}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2 w-full md:w-auto">
+
+                  <div className="flex items-center gap-3 w-full lg:w-auto">
                     <button 
                       disabled={!!processingId}
                       onClick={() => handleDecision(req.id, "REJECTED")}
-                      className="flex-1 md:flex-none bg-red-900/20 hover:bg-red-900/40 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 lg:flex-none bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg active:scale-95"
                     >
-                      <XCircle className="w-4 h-4" /> رفض
+                      <XCircle className="w-4 h-4 inline-block mr-1" /> رفض الطلب
                     </button>
                     <button 
                       disabled={!!processingId}
                       onClick={() => handleDecision(req.id, "APPROVED")}
-                      className="flex-1 md:flex-none bg-green-900/20 hover:bg-green-900/40 text-green-500 border border-green-500/30 px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 lg:flex-none bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white border border-green-600/30 px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg active:scale-95"
                     >
-                      <CheckCircle className="w-4 h-4" /> اعتماد التعديل
+                      <CheckCircle className="w-4 h-4 inline-block mr-1" /> اعتماد التعديلات
                     </button>
                   </div>
                 </div>
                 
-                <div className="p-6">
-                  <h3 className="text-[#F59E0B] font-bold mb-4 flex items-center gap-2 text-sm uppercase">
-                    <FileEdit className="w-4 h-4" /> التعديلات المقترحة لملف المواطن ID: {req.entityId}
-                  </h3>
+                <div className="p-8">
+                  <div className="flex items-center gap-3 mb-8 pb-4 border-b border-[#1F2937]/50">
+                    <FileEdit className="w-5 h-5 text-amber-500" />
+                    <div>
+                       <h3 className="text-white font-bold text-lg">مراجعة الفوارق لملف: {current.fullName || req.entityId}</h3>
+                       <p className="text-[10px] text-gray-500 font-mono tracking-tighter">Entity ID: {req.entityId}</p>
+                    </div>
+                  </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Object.entries(changes).map(([key, value]: [string, any]) => (
-                      <div key={key} className="bg-[#0B0F19] p-4 rounded-lg border border-[#1F2937] text-right">
-                        <p className="text-gray-500 text-[10px] mb-1 font-bold uppercase">{key}</p>
-                        <p className="text-white text-sm font-mono break-words">{value || "—"}</p>
-                      </div>
-                    ))}
+                  {/* Diff Table Style */}
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-widest bg-[#0B0F19]/50 rounded-t-lg">
+                       <div className="col-span-2">الحقل</div>
+                       <div className="col-span-10 grid grid-cols-2 gap-8 px-4">
+                          <span>البيانات الحالية (Current)</span>
+                          <span>البيانات المقترحة (Proposed)</span>
+                       </div>
+                    </div>
+
+                    <div className="divide-y divide-[#1F2937]">
+                      {Object.entries(proposed).map(([key, newValue]: [string, any]) => {
+                        const oldValue = current[key];
+                        const isChanged = String(oldValue) !== String(newValue);
+                        
+                        // Map technical keys to Arabic labels
+                        const labels: any = {
+                          fullName: "الاسم الكامل",
+                          motherName: "اسم الأم",
+                          nationalId: "الرقم الوطني",
+                          dateOfBirth: "تاريخ الميلاد",
+                          placeOfBirth: "مكان الميلاد",
+                          gender: "الجنس",
+                          address: "العنوان",
+                          job: "المهنة",
+                          maritalStatus: "الحالة الاجتماعية",
+                          bloodType: "فصيلة الدم",
+                          physicalMarks: "العلامات الفارقة",
+                          photoUrl: "رابط الصورة الشخصية",
+                          notes: "الوصف الأمني الحر"
+                        };
+
+                        return (
+                          <div key={key} className={`grid grid-cols-12 gap-4 p-4 items-center transition-colors ${isChanged ? 'bg-blue-600/5' : ''}`}>
+                             <div className="col-span-2 text-xs font-black text-gray-400">
+                                {labels[key] || key}
+                             </div>
+                             <div className="col-span-10 grid grid-cols-2 gap-8 px-4 font-mono text-sm items-center">
+                                <div className="text-gray-500 line-through opacity-50 bg-red-950/10 p-2 rounded border border-red-900/10">
+                                   {oldValue ? String(oldValue) : "—"}
+                                </div>
+                                <div className={`p-2 rounded border font-black ${isChanged ? 'bg-green-600/20 text-green-400 border-green-500/30' : 'bg-[#0B0F19] text-white border-[#1F2937]'}`}>
+                                   {newValue ? String(newValue) : "—"}
+                                   {isChanged && <span className="mr-2 text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-full uppercase">MODIFIED</span>}
+                                </div>
+                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
