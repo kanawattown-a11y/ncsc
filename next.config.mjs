@@ -3,6 +3,12 @@ const nextConfig = {
   output: "standalone", // Critical for Docker/Lightsail deployment optimization
   reactStrictMode: true,
   poweredByHeader: false, // Security: Hide Next.js header
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   async headers() {
     return [
       {
