@@ -21,8 +21,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+    // 1. FORWARD IDENTITY: Pass the user's cookie to the internal request
+    // This is the "Jazri" (Radical) fix for 500 errors caused by internal 401s.
+    const cookie = request.headers.get("cookie") || "";
+
+    const response = await fetch(imageUrl, {
+      headers: {
+        cookie, // Forward the session!
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Proxy Fetch Full Error: ${response.status} - ${errorText}`);
+      throw new Error(`Failed to fetch image: ${response.status} ${errorText}`);
+    }
 
     const blob = await response.blob();
     const contentType = response.headers.get("content-type") || "image/jpeg";
