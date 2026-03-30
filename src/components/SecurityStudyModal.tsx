@@ -58,21 +58,14 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     try {
       setIsCapturing(true);
       
-      // 1. Force pre-loading of the profile image to prevent canvas tainting (CORS)
-      // This part ensures images from S3 don't block canvas export.
+      // 1. Point the image to our internal proxy to bypass CORS/Tainted canvas
       if (person.photoUrl) {
-        try {
-          const res = await fetch(person.photoUrl, { mode: 'cors' });
-          if (!res.ok) throw new Error("Image fetch failed");
-          const blob = await res.blob();
-          const safeUrl = URL.createObjectURL(blob);
-          
-          // Temporary swap the src in the DOM for the capture
-          const img = reportRef.current.querySelector('img[alt="Subject"]') as HTMLImageElement;
-          if (img) img.src = safeUrl;
-        } catch (e) {
-          console.warn("Could not pre-load image for clean capture, attempting legacy mode", e);
-        }
+        const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(person.photoUrl)}`;
+        const img = reportRef.current.querySelector('img[alt="Subject"]') as HTMLImageElement;
+        if (img) img.src = proxiedUrl;
+        
+        // Wait a small moment for proxy to load
+        await new Promise(r => setTimeout(r, 500));
       }
 
       const element = reportRef.current;

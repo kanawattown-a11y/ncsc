@@ -10,10 +10,18 @@ export async function POST() {
   }
 
   try {
-    await (prisma as any).user.update({
-      where: { id: session.user.id },
-      data: { lastActive: new Date() }
-    });
+    const userId = (session.user as any).id;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { lastActive: true } });
+    
+    // Only update if last active was more than 45 seconds ago (debounce)
+    const fortyFiveSecsAgo = new Date(Date.now() - 45 * 1000);
+    if (!user?.lastActive || user.lastActive < fortyFiveSecsAgo) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { lastActive: new Date() }
+      });
+    }
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Heartbeat error", error);

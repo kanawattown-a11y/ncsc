@@ -26,6 +26,7 @@ export default function AdminRequestsPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
 
   useEffect(() => { fetchRequests(); }, []);
 
@@ -50,7 +51,8 @@ export default function AdminRequestsPage() {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        setRequests(requests.filter(r => r.id !== id));
+        // Update local state instead of filtering out
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
       } else {
         const error = await res.json();
         alert("خطأ: " + error.error);
@@ -62,62 +64,90 @@ export default function AdminRequestsPage() {
     }
   };
 
+  const filteredRequests = requests.filter(r => filter === "ALL" || r.status === filter);
+
   if (loading) return (
     <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-3">
       <Clock className="w-8 h-8 animate-spin opacity-40" />
-      جاري تحميل الطلبات العالقة...
+      جاري تحميل السجلات والطلبات...
     </div>
   );
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-4 sm:p-6 shadow-lg">
-        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">مراجعة واعتماد طلبات التعديل</h1>
-        <p className="text-gray-400 text-sm hidden sm:block">قم بتدقيق التغييرات المقترحة من مدخلي البيانات قبل اعتمادها في السجل الوطني.</p>
+      <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-4 sm:p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+           <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">مركز معالجة طلبات التعديل</h1>
+           <p className="text-gray-400 text-sm hidden sm:block">سجل كامل للطلبات والقرارات الصادرة لضمان الشفافية والأمان.</p>
+        </div>
+        <div className="flex bg-[#0B0F19] p-1 rounded-xl border border-[#1F2937] self-start sm:self-center overflow-x-auto max-w-full no-scrollbar">
+           {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map(f => (
+             <button
+               key={f}
+               onClick={() => setFilter(f)}
+               className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all whitespace-nowrap ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+             >
+               {f === "PENDING" ? "المعلقة" : (f === "APPROVED" ? "المقبولة" : (f === "REJECTED" ? "المرفوضة" : "الكل"))}
+             </button>
+           ))}
+        </div>
       </div>
 
-      {requests.length === 0 ? (
+      {filteredRequests.length === 0 ? (
         <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-10 text-center text-gray-500">
           <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
-          لا توجد طلبات تعديل معلقة حالياً.
+          لا توجد سجلات مطابقة لهذا التصنيف حالياً.
         </div>
       ) : (
         <div className="space-y-4 sm:space-y-8">
-          {requests.map((req) => {
+          {filteredRequests.map((req) => {
             let proposed: any = {};
             try { proposed = JSON.parse(req.proposedChanges); } catch { }
             const current = req.currentData || {};
 
             return (
-              <div key={req.id} className="bg-[#111827] border border-[#1F2937] rounded-2xl overflow-hidden shadow-2xl">
+              <div key={req.id} className={`bg-[#111827] border rounded-2xl overflow-hidden shadow-2xl transition-all ${req.status === 'PENDING' ? 'border-[#1F2937]' : (req.status === 'APPROVED' ? 'border-green-500/30' : 'border-red-500/30')}`}>
                 {/* Request Header */}
                 <div className="bg-[#1F2937]/30 p-4 sm:p-6 border-b border-[#1F2937]">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="bg-blue-600/20 p-2.5 rounded-xl border border-blue-500/30 shrink-0">
-                        <User className="w-5 h-5 text-blue-500" />
+                      <div className={`p-2.5 rounded-xl border shrink-0 ${req.status === 'PENDING' ? 'bg-blue-600/10 border-blue-500/30 text-blue-500' : (req.status === 'APPROVED' ? 'bg-green-600/10 border-green-500/30 text-green-500' : 'bg-red-600/10 border-red-500/30 text-red-500')}`}>
+                        <User className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-white font-black text-sm tracking-tight">طلب من: {req.dataEntry?.username || "مدخل بيانات"}</p>
+                        <div className="flex items-center gap-2">
+                           <p className="text-white font-black text-sm tracking-tight">{req.dataEntry?.username || "مدخل بيانات"}</p>
+                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${req.status === 'PENDING' ? 'bg-blue-600 text-white' : (req.status === 'APPROVED' ? 'bg-green-600 text-white' : 'bg-red-600 text-white')}`}>
+                              {req.status === "PENDING" ? "انتظار" : (req.status === "APPROVED" ? "تم القبول" : "تم الرفض")}
+                           </span>
+                        </div>
                         <p className="text-gray-500 text-[11px] font-mono">{new Date(req.createdAt).toLocaleString('ar-EG')}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 sm:gap-3">
-                      <button
-                        disabled={!!processingId}
-                        onClick={() => handleDecision(req.id, "REJECTED")}
-                        className="flex-1 sm:flex-none bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <XCircle className="w-4 h-4" /> رفض
-                      </button>
-                      <button
-                        disabled={!!processingId}
-                        onClick={() => handleDecision(req.id, "APPROVED")}
-                        className="flex-1 sm:flex-none bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white border border-green-600/30 px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <CheckCircle className="w-4 h-4" /> اعتماد
-                      </button>
-                    </div>
+                    
+                    {req.status === "PENDING" ? (
+                      <div className="flex gap-2 sm:gap-3">
+                        <button
+                          disabled={!!processingId}
+                          onClick={() => handleDecision(req.id, "REJECTED")}
+                          className="flex-1 sm:flex-none bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <XCircle className="w-4 h-4" /> رفض
+                        </button>
+                        <button
+                          disabled={!!processingId}
+                          onClick={() => handleDecision(req.id, "APPROVED")}
+                          className="flex-1 sm:flex-none bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white border border-green-600/30 px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle className="w-4 h-4" /> اعتماد
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0B0F19] rounded-xl border border-white/5 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                         <ShieldCheck className={`w-3.5 h-3.5 ${req.status === 'APPROVED' ? 'text-green-500' : 'text-red-500'}`} />
+                         تم اتخاذ القرار
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">
@@ -177,7 +207,7 @@ export default function AdminRequestsPage() {
                                 <div className="text-xs text-gray-500 line-through bg-red-950/10 p-2 rounded border border-red-900/10 break-words">
                                   {oldValue ? String(oldValue) : "—"}
                                 </div>
-                                <div className={`text-xs p-2 rounded border break-words ${isChanged ? 'bg-green-600/20 text-green-400 border-green-500/30 font-bold' : 'bg-[#0B0F19] text-white border-[#1F2937]'}`}>
+                                <div className={`text-xs p-2 rounded border break-words ${isChanged && req.status === 'PENDING' ? 'bg-green-600/20 text-green-400 border-green-500/30 font-bold' : (isChanged ? 'bg-gray-800 text-green-500 border-green-500/20' : 'bg-[#0B0F19] text-white border-[#1F2937]')}`}>
                                   {newValue ? String(newValue) : "—"}
                                   {isChanged && <span className="block text-[8px] bg-green-500 text-black px-1 py-0.5 rounded mt-1 w-fit">MODIFIED</span>}
                                 </div>
@@ -190,7 +220,7 @@ export default function AdminRequestsPage() {
                                 <div className="text-gray-500 line-through opacity-50 bg-red-950/10 p-2 rounded border border-red-900/10 break-words">
                                   {oldValue ? String(oldValue) : "—"}
                                 </div>
-                                <div className={`p-2 rounded border font-black break-words ${isChanged ? 'bg-green-600/20 text-green-400 border-green-500/30' : 'bg-[#0B0F19] text-white border-[#1F2937]'}`}>
+                                <div className={`p-2 rounded border font-black break-words ${isChanged && req.status === 'PENDING' ? 'bg-green-600/20 text-green-400 border-green-500/30' : (isChanged ? 'bg-gray-800 text-green-500 border-green-500/20' : 'bg-[#0B0F19] text-white border-[#1F2937]')}`}>
                                   {newValue ? String(newValue) : "—"}
                                   {isChanged && <span className="mr-2 text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-full">MODIFIED</span>}
                                 </div>

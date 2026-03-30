@@ -55,7 +55,6 @@ export async function GET(request: Request) {
 
   try {
     const requests = await prisma.editRequest.findMany({
-      where: { status: "PENDING" },
       include: { dataEntry: true },
       orderBy: { createdAt: "desc" }
     });
