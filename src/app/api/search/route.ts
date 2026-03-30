@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getPresignedViewUrl } from "@/lib/s3";
 
 export async function GET(request: Request) {
   // 1. Session Protection Layer
@@ -40,11 +41,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ status: "NOT_FOUND" });
     }
 
+    // Enhance documents with presigned URLs for previews
+    const documentsWithUrls = await Promise.all(
+      person.documents.map(async (doc) => {
+        try {
+          const viewUrl = await getPresignedViewUrl(doc.fileKey);
+          return { ...doc, viewUrl };
+        } catch (err) {
+          console.error("Presigned URL error for doc:", doc.id, err);
+          return doc;
+        }
+      })
+    );
+
     const isBanned = person.records && person.records.length > 0;
 
     return NextResponse.json({
       status: isBanned ? "BANNED" : "CLEARED",
-      person,
+      person: { ...person, documents: documentsWithUrls },
       records: person.records || []
     });
 

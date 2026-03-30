@@ -1,20 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { PlusCircle, Upload, Search, Edit2, FileText, CheckCircle, AlertTriangle, X } from "lucide-react";
+import { PlusCircle, Upload, Search, Edit2, FileText, CheckCircle, AlertTriangle, X, ShieldCheck, Download, Eye } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useToast } from "@/context/ToastContext";
+import CitizenProfileModal from "./CitizenProfileModal";
 
 export default function DataEntryClient({ initialData }: { initialData: any[] }) {
   const [people, setPeople] = useState(initialData);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Modals state
+  const { data: session } = useSession();
+  const { showToast } = useToast();
+  const role = (session?.user as any)?.role;
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [activeProfile, setActiveProfile] = useState<any>(null);
 
   // Add Form State
   const [formData, setFormData] = useState({
-    nationalId: "", fullName: "", motherName: "", placeOfBirth: "", job: "", physicalMarks: ""
+    nationalId: "", fullName: "", motherName: "", 
+    dateOfBirth: "", placeOfBirth: "", gender: "MALE",
+    address: "", job: "", maritalStatus: "SINGLE", 
+    bloodType: "", physicalMarks: "", photoUrl: ""
   });
   const [recordData, setRecordData] = useState({
     type: "OTHER", reason: "", source: "INTERNAL", severity: "MEDIUM"
@@ -22,8 +32,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
   const [addRecordMode, setAddRecordMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Upload State
   const [file, setFile] = useState<File | null>(null);
+  const [setAsPortrait, setSetAsPortrait] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"" | "uploading" | "success" | "error">("");
   const [uploadMessage, setUploadMessage] = useState("");
 
@@ -43,12 +53,92 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
       // Successfully added! Refresh local list
       setPeople([data, ...people]);
       setShowAddModal(false);
-      setFormData({ nationalId: "", fullName: "", motherName: "", placeOfBirth: "", job: "", physicalMarks: "" });
+      setFormData({ 
+        nationalId: "", fullName: "", motherName: "", 
+        dateOfBirth: "", placeOfBirth: "", gender: "MALE",
+        address: "", job: "", maritalStatus: "SINGLE", 
+        bloodType: "", physicalMarks: "", photoUrl: ""
+      });
       setAddRecordMode(false);
     } catch (err: any) {
       alert("خطأ: " + err.message);
     } finally {
         setIsSubmitting(false);
+    }
+  };
+
+  const handleEditClick = (person: any) => {
+    setFormData({
+      nationalId: person.nationalId,
+      fullName: person.fullName,
+      motherName: person.motherName || "",
+      dateOfBirth: person.dateOfBirth ? new Date(person.dateOfBirth).toISOString().split('T')[0] : "",
+      placeOfBirth: person.placeOfBirth || "",
+      gender: person.gender || "MALE",
+      address: person.address || "",
+      job: person.job || "",
+      maritalStatus: person.maritalStatus || "SINGLE",
+      bloodType: person.bloodType || "",
+      physicalMarks: person.physicalMarks || "",
+      photoUrl: person.photoUrl || ""
+    });
+    setSelectedPersonId(person.id);
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePerson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPersonId) return;
+    setIsSubmitting(true);
+    
+    try {
+      if (role === "ADMIN") {
+        // Direct Action for Admin
+        const res = await fetch(`/api/persons/${selectedPersonId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        setPeople(people.map(p => p.id === selectedPersonId ? data : p));
+        setShowEditModal(false);
+        setFormData({ 
+          nationalId: "", fullName: "", motherName: "", 
+          dateOfBirth: "", placeOfBirth: "", gender: "MALE",
+          address: "", job: "", maritalStatus: "SINGLE", 
+          bloodType: "", physicalMarks: "", photoUrl: ""
+        });
+        setSelectedPersonId(null);
+        showToast("تم تحديث بيانات الملف بنجاح.", "success");
+      } else {
+        // Request Action for Data Entry
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personId: selectedPersonId,
+            proposedChanges: formData
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        showToast("تم إرسال طلب التعديل بنجاح لمراجعة الأدمن.", "success");
+        setShowEditModal(false);
+        setFormData({ 
+          nationalId: "", fullName: "", motherName: "", 
+          dateOfBirth: "", placeOfBirth: "", gender: "MALE",
+          address: "", job: "", maritalStatus: "SINGLE", 
+          bloodType: "", physicalMarks: "", photoUrl: ""
+        });
+        setSelectedPersonId(null);
+      }
+    } catch (err: any) {
+      alert("خطأ: " + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,6 +189,30 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
      }
   };
 
+  const handleExportCSV = () => {
+    const headers = ["الرقم الوطني", "الاسم الكامل", "اسم الأم", "المهنة", "حالة القيد"];
+    const rows = filtered.map(p => {
+       const isBanned = p.records && p.records.some((r: any) => r.active);
+       return [
+         p.nationalId,
+         p.fullName,
+         p.motherName || "—",
+         p.job || "—",
+         isBanned ? `مطلوب (${p.records.length})` : "سليم"
+       ];
+    });
+
+    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `NCSC_Export_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filtered = people.filter(p => p.nationalId.includes(searchTerm) || p.fullName.includes(searchTerm));
 
   return (
@@ -107,6 +221,9 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <button onClick={() => setShowAddModal(true)} className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow-lg transition-colors">
           <PlusCircle className="w-5 h-5" /> بناء ملف مواطن
+        </button>
+        <button onClick={handleExportCSV} className="bg-[#111827] border border-[#1F2937] hover:bg-[#1F2937] text-gray-300 px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-md active:scale-95">
+          <Download className="w-5 h-5 text-[#F59E0B]" /> تصدير السجل العام
         </button>
         <div className="flex-1 relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -139,9 +256,15 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 {filtered.map((person) => {
                   const isBanned = person.records && person.records.some((r: any) => r.active);
                   return (
-                    <tr key={person.id} className="hover:bg-[#1F2937]/30 transition-colors">
+                    <tr key={person.id} className="hover:bg-[#1F2937]/30 transition-colors group">
                       <td className="px-6 py-4 font-mono text-gray-300 font-bold">{person.nationalId}</td>
-                      <td className="px-6 py-4 font-bold text-white">{person.fullName}</td>
+                      <td 
+                        className="px-6 py-4 font-bold text-white cursor-pointer hover:text-[#2563EB] transition-colors flex items-center gap-2 group/name"
+                        onClick={() => { setActiveProfile(person); setShowProfileModal(true); }}
+                      >
+                        {person.fullName}
+                        <Eye className="w-4 h-4 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                      </td>
                       <td className="px-6 py-4">
                         {!isBanned ? (
                           <span className="text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded text-xs border border-[#10B981]/30">معدوم القيود</span>
@@ -156,7 +279,10 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                          >
                             <Upload className="w-4 h-4 cursor-pointer" /> إرفاق دليل مشفر  (S3)
                          </button>
-                         <button className="text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs">
+                         <button 
+                             onClick={() => handleEditClick(person)}
+                             className="text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs"
+                         >
                             <Edit2 className="w-4 h-4" /> طلب تعديل
                          </button>
                       </td>
@@ -177,27 +303,69 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
             <h2 className="text-2xl font-bold text-white mb-6 border-b border-[#1F2937] pb-4 flex items-center gap-2"><PlusCircle className="text-[#2563EB]" /> إنشاء ملف مواطن جديد</h2>
             
             <form onSubmit={handleCreatePerson} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400 block mb-1">الرقم الوطني *</label>
-                  <input required placeholder="مثال: 01010101010" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 font-mono" value={formData.nationalId} onChange={e => setFormData(p => ({...p, nationalId: e.target.value}))} />
+                  <label className="text-xs text-gray-500 block mb-1">الرقم الوطني *</label>
+                  <input required placeholder="12345678901" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 font-mono text-sm" value={formData.nationalId} onChange={e => setFormData(p => ({...p, nationalId: e.target.value}))} />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400 block mb-1">الاسم الكامل (رباعي) *</label>
-                  <input required placeholder="الاسم" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3" value={formData.fullName} onChange={e => setFormData(p => ({...p, fullName: e.target.value}))} />
+                  <label className="text-xs text-gray-500 block mb-1">الاسم الرباعي الكامل *</label>
+                  <input required placeholder="الاسم الكامل" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.fullName} onChange={e => setFormData(p => ({...p, fullName: e.target.value}))} />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400 block mb-1">اسم الأم</label>
-                  <input placeholder="الاسم" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3" value={formData.motherName} onChange={e => setFormData(p => ({...p, motherName: e.target.value}))} />
+                  <label className="text-xs text-gray-500 block mb-1">اسم الأم</label>
+                  <input placeholder="اسم الأم" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.motherName} onChange={e => setFormData(p => ({...p, motherName: e.target.value}))} />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400 block mb-1">المهنة / العمل</label>
-                  <input placeholder="طبيب، ضابط، نجار" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3" value={formData.job} onChange={e => setFormData(p => ({...p, job: e.target.value}))} />
+                  <label className="text-xs text-gray-500 block mb-1">تاريخ الميلاد</label>
+                  <input type="date" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.dateOfBirth} onChange={e => setFormData(p => ({...p, dateOfBirth: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">مكان الميلاد</label>
+                  <input placeholder="المدينة/المحافظة" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.placeOfBirth} onChange={e => setFormData(p => ({...p, placeOfBirth: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">الجنس</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.gender} onChange={e => setFormData(p => ({...p, gender: e.target.value}))}>
+                    <option value="MALE">ذكر</option>
+                    <option value="FEMALE">أنثى</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">المهنة</label>
+                  <input placeholder="المهنة الحالية" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.job} onChange={e => setFormData(p => ({...p, job: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">الحالة الاجتماعية</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.maritalStatus} onChange={e => setFormData(p => ({...p, maritalStatus: e.target.value}))}>
+                    <option value="SINGLE">أعزب</option>
+                    <option value="MARRIED">متزوج</option>
+                    <option value="DIVORCED">مطلق</option>
+                    <option value="WIDOWED">أرمل</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">فصيلة الدم</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.bloodType} onChange={e => setFormData(p => ({...p, bloodType: e.target.value}))}>
+                    <option value="">غير معروف</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
                 </div>
               </div>
               <div>
-                  <label className="text-sm text-gray-400 block mb-1">العلامات الفارقة</label>
-                  <input placeholder="وشم على اليد اليمنى، ندبة في الوجه" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3" value={formData.physicalMarks} onChange={e => setFormData(p => ({...p, physicalMarks: e.target.value}))} />
+                  <label className="text-xs text-gray-500 block mb-1">العنوان التفصيلي</label>
+                  <input placeholder="المحافظة - المنطقة - الشارع - رقم البناء" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.address} onChange={e => setFormData(p => ({...p, address: e.target.value}))} />
+              </div>
+              <div>
+                  <label className="text-xs text-gray-500 block mb-1">العلامات الفارقة</label>
+                  <input placeholder="ندبات، أوشام، إلخ" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.physicalMarks} onChange={e => setFormData(p => ({...p, physicalMarks: e.target.value}))} />
               </div>
 
               <div className="border border-[#1F2937] rounded-lg p-4 mt-6 bg-[#0B0F19]">
@@ -247,6 +415,93 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
         </div>
       )}
 
+      {/* Edit Person Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto font-sans">
+            <button onClick={() => setShowEditModal(false)} className="absolute top-4 left-4 text-gray-500 hover:text-white"><X className="w-6 h-6" /></button>
+            <h2 className="text-2xl font-bold text-white mb-6 border-b border-[#1F2937] pb-4 flex items-center gap-2"><Edit2 className="text-[#F59E0B]" /> تعديل بيانات السجل الأمني</h2>
+            
+            <form onSubmit={handleUpdatePerson} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-right">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">الرقم الوطني (محمي)</label>
+                  <input readOnly className="w-full bg-[#0B0F19] text-gray-500 border border-[#1F2937] rounded p-3 font-mono opacity-60 text-sm" value={formData.nationalId} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">الاسم الكامل *</label>
+                  <input required className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.fullName} onChange={e => setFormData(p => ({...p, fullName: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">اسم الأم</label>
+                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.motherName} onChange={e => setFormData(p => ({...p, motherName: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">تاريخ الميلاد</label>
+                  <input type="date" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.dateOfBirth} onChange={e => setFormData(p => ({...p, dateOfBirth: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">مكان الميلاد</label>
+                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.placeOfBirth} onChange={e => setFormData(p => ({...p, placeOfBirth: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">الجنس</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.gender} onChange={e => setFormData(p => ({...p, gender: e.target.value}))}>
+                    <option value="MALE">ذكر</option>
+                    <option value="FEMALE">أنثى</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">المهنة الحالية</label>
+                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.job} onChange={e => setFormData(p => ({...p, job: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">الحالة الاجتماعية</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.maritalStatus} onChange={e => setFormData(p => ({...p, maritalStatus: e.target.value}))}>
+                    <option value="SINGLE">أعزب</option>
+                    <option value="MARRIED">متزوج</option>
+                    <option value="DIVORCED">مطلق</option>
+                    <option value="WIDOWED">أرمل</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">فصيلة الدم</label>
+                  <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.bloodType} onChange={e => setFormData(p => ({...p, bloodType: e.target.value}))}>
+                    <option value="">غير معروف</option>
+                    <option value="A+">A+</option>
+                    <option value="B+">B+</option>
+                    <option value="AB+">AB+</option>
+                    <option value="O+">O+</option>
+                  </select>
+                </div>
+              </div>
+              <div className="text-right">
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">العنوان التفصيلي</label>
+                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.address} onChange={e => setFormData(p => ({...p, address: e.target.value}))} />
+              </div>
+              <div className="text-right">
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">العلامات الفارقة والجسدية</label>
+                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.physicalMarks} onChange={e => setFormData(p => ({...p, physicalMarks: e.target.value}))} />
+              </div>
+
+              <div className="pt-6 flex justify-start">
+                <button type="submit" disabled={isSubmitting} className={`${role === 'ADMIN' ? 'bg-[#F59E0B]' : 'bg-[#2563EB]'} hover:opacity-90 text-black font-bold px-10 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95`}>
+                  {isSubmitting ? (
+                    <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+                  ) : (
+                    role === "ADMIN" ? (
+                      <>حفظ التعديلات الأمنية فوراً (بدون مراجعة)</>
+                    ) : (
+                      <>إرسال طلب مراجعة للقيادة</>
+                    )
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Upload S3 Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">
@@ -272,7 +527,23 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
 
               {uploadStatus !== "success" && (
                 <form onSubmit={handleFileUpload} className="w-full">
-                  <input type="file" required onChange={e => setFile(e.target.files?.[0] || null)} className="w-full bg-[#0B0F19] text-gray-300 border border-[#1F2937] p-2 rounded mb-6 file:cursor-pointer file:border-0 file:bg-[#10B981] file:text-black file:font-bold file:px-4 file:py-2 file:mr-4 file:rounded file:hover:bg-[#059669]" />
+                  <input type="file" required onChange={e => setFile(e.target.files?.[0] || null)} className="w-full bg-[#0B0F19] text-gray-300 border border-[#1F2937] p-2 rounded mb-4 file:cursor-pointer file:border-0 file:bg-[#10B981] file:text-black file:font-bold file:px-4 file:py-2 file:mr-4 file:rounded file:hover:bg-[#059669]" />
+                  
+                  {file && file.type.includes("image") && (
+                    <div className="flex items-center gap-3 mb-6 bg-[#0B0F19] p-3 rounded border border-[#1F2937]">
+                       <input 
+                         type="checkbox" 
+                         id="portrait_chk" 
+                         className="w-4 h-4 accent-[#10B981]" 
+                         checked={setAsPortrait} 
+                         onChange={(e) => setSetAsPortrait(e.target.checked)} 
+                       />
+                       <label htmlFor="portrait_chk" className="text-xs text-[#10B981] font-bold cursor-pointer">
+                          اعتماد هذه الصورة كـ "صورة شخصية رسمية" في ملف المواطن
+                       </label>
+                    </div>
+                  )}
+
                   <button type="submit" disabled={uploadStatus === "uploading" || !file} className="w-full bg-[#10B981] hover:bg-[#059669] text-black font-bold py-3 rounded-lg flex justify-center items-center gap-2">
                     {uploadStatus === "uploading" ? (
                       <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
@@ -285,6 +556,13 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
             </div>
           </div>
         </div>
+      )}
+      {/* Profile Detail Modal */}
+      {showProfileModal && activeProfile && (
+        <CitizenProfileModal 
+          person={activeProfile} 
+          onClose={() => setShowProfileModal(false)} 
+        />
       )}
     </>
   );

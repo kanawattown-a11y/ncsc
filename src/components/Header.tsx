@@ -13,7 +13,15 @@ export default function Header() {
           <Menu className="w-6 h-6" />
         </button>
         <div className="flex items-center space-x-2 space-x-reverse">
-          <img src="/logo.png" alt="NCSC" className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/Public/logo.png' }} />
+          <img
+            src="/logo.png"
+            alt="NCSC"
+            className="w-8 h-8 object-contain"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/public/logo.png';
+            }}
+          />
           <span className="text-gray-300 font-bold tracking-wide uppercase text-sm">نظام التصريح الأمني</span>
         </div>
       </div>
@@ -23,7 +31,7 @@ export default function Header() {
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-[#EF4444] rounded-full ring-2 ring-[#111827]"></span>
         </button>
-        
+
         <div className="w-px h-6 bg-[#1F2937]"></div>
 
         <button

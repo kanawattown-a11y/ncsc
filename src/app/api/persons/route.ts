@@ -14,7 +14,11 @@ export async function POST(request: Request) {
 
   try {
     const data = await request.json();
-    const { nationalId, fullName, motherName, dateOfBirth, placeOfBirth, job, physicalMarks, records } = data;
+    const { 
+      nationalId, fullName, motherName, dateOfBirth, 
+      placeOfBirth, gender, address, job, 
+      maritalStatus, bloodType, physicalMarks, photoUrl, records 
+    } = data;
 
     if (!nationalId || !fullName) {
       return NextResponse.json({ error: "الرقم الوطني والاسم الكامل إجبارية" }, { status: 400 });
@@ -33,8 +37,13 @@ export async function POST(request: Request) {
         motherName,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         placeOfBirth,
+        gender,
+        address,
         job,
+        maritalStatus,
+        bloodType,
         physicalMarks,
+        photoUrl,
         records: {
           create: records?.map((r: any) => ({
             type: r.type,

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { personId, nationalId, fileName, fileType, docType } = await request.json();
+    const { personId, nationalId, fileName, fileType, docType, setAsPortrait } = await request.json();
 
     if (!personId || !nationalId || !fileName || !fileType) {
        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -27,8 +27,7 @@ export async function POST(request: Request) {
     // Generate S3 URL securely
     const { url, key } = await getPresignedUploadUrl(nationalId, fileName, fileType);
 
-    // After uploading, the client will instruct us, but we can proactively record the document in DB 
-    // expecting the client to PUT it there.
+    // Record the document in DB
     const newDoc = await prisma.document.create({
       data: {
         personId,
@@ -36,11 +35,20 @@ export async function POST(request: Request) {
         type: docType || "OTHER",
         fileKey: key,
         mimeType: fileType,
-        size: 0 // Size usually logged after upload completion via S3 Event or client ping
+        size: 0 
       }
     });
 
-    // Provide the URL and the DB document ID to the client
+    // If set as portrait, update the Person's photoUrl with the S3 URL (Public or Presigned)
+    if (setAsPortrait) {
+       // Note: In production, photoUrl would be a public CloudFront URL or we'd serve via a proxy.
+       // For this prototype, we store the key or the final planned URL.
+       await prisma.person.update({
+         where: { id: personId },
+         data: { photoUrl: `/api/documents/view/${newDoc.id}` } // Using a hypothetical view proxy
+       });
+    }
+
     return NextResponse.json({ uploadUrl: url, key, documentId: newDoc.id });
 
   } catch (error) {

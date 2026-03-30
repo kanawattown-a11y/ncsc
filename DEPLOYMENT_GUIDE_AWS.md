@@ -36,6 +36,19 @@
 3. **مفاتيح الوصول (IAM):**
    - أنشئ User في IAM بصلاحية `S3FullAccess` لهذا الـ Bucket حصراً.
    - استخرج الـ `Access Key` والـ `Secret Key`.
+4. **تفعيل إعدادات CORS (ضروري جداً للرفع):**
+   - ادخل على الـ Bucket -> Permissions -> Cross-origin resource sharing (CORS).
+   - الصق الإعدادات التالية للسماح للموقع برفع الملفات:
+```json
+[
+    {
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": ["PUT", "POST", "GET", "HEAD"],
+        "AllowedOrigins": ["https://ncsc.gov-bashan.org", "http://localhost:3000"],
+        "ExposeHeaders": ["ETag"]
+    }
+]
+```
 
 ---
 

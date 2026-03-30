@@ -131,19 +131,30 @@ export default function SearchPage() {
                     <FileText className="w-6 h-6" /> المرفقات والوثائق الأمنية (PDF، صور، الخ):
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {result.person.documents.map((doc: any, i: number) => (
-                      <button 
-                        key={i} 
-                        onClick={() => handleDocumentOpen(doc.id)} 
-                        className="bg-[#0B0F19]/60 hover:bg-[#10B981]/20 p-4 rounded-lg flex items-center gap-3 border border-[#10B981]/30 transition-colors text-right"
-                      >
-                        <FileText className="w-8 h-8 text-[#10B981]" />
-                        <div>
-                          <p className="font-bold text-sm text-white">{doc.name}</p>
-                          <p className="text-xs text-gray-400 font-mono mt-1">{doc.type}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {result.person.documents.map((doc: any, i: number) => {
+                      const isImage = doc.type === "IMAGE" || /\.(jpg|jpeg|png|webp)$/i.test(doc.name);
+                      return (
+                        <button 
+                          key={i} 
+                          onClick={() => handleDocumentOpen(doc.id)} 
+                          className="bg-[#0B0F19]/60 hover:bg-[#10B981]/10 rounded-lg flex flex-col items-center border border-[#10B981]/30 transition-all group overflow-hidden"
+                        >
+                          {isImage && doc.viewUrl ? (
+                            <div className="w-full h-32 relative overflow-hidden bg-black/40">
+                              <img src={doc.viewUrl} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                            </div>
+                          ) : (
+                            <div className="w-full h-32 flex items-center justify-center bg-black/20">
+                              <FileText className="w-12 h-12 text-[#10B981]" />
+                            </div>
+                          )}
+                          <div className="p-3 w-full text-right">
+                            <p className="font-bold text-sm text-white truncate">{doc.name}</p>
+                            <p className="text-[10px] text-gray-400 font-mono mt-1 uppercase">{doc.type}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -218,19 +229,30 @@ export default function SearchPage() {
                      المرفقات وأدلة الاتهام (وثائق للمراجعة):
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {result.person.documents.map((doc: any, i: number) => (
-                      <button 
-                        key={i} 
-                        onClick={() => handleDocumentOpen(doc.id)} 
-                        className="bg-[#0B0F19]/60 hover:bg-[#F59E0B]/20 p-4 rounded-lg flex items-center gap-3 border border-[#F59E0B]/30 transition-colors text-right shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                      >
-                        <FileText className="w-8 h-8 text-[#F59E0B]" />
-                        <div>
-                          <p className="font-bold text-sm text-white">{doc.name}</p>
-                          <p className="text-xs text-gray-400 font-mono mt-1">{doc.type}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {result.person.documents.map((doc: any, i: number) => {
+                      const isImage = doc.type === "IMAGE" || /\.(jpg|jpeg|png|webp)$/i.test(doc.name);
+                      return (
+                        <button 
+                          key={i} 
+                          onClick={() => handleDocumentOpen(doc.id)} 
+                          className="bg-[#0B0F19]/60 hover:bg-[#F59E0B]/20 rounded-lg flex flex-col items-center border border-[#F59E0B]/30 transition-all group overflow-hidden shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                        >
+                          {isImage && doc.viewUrl ? (
+                            <div className="w-full h-32 relative overflow-hidden bg-black/40">
+                              <img src={doc.viewUrl} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                            </div>
+                          ) : (
+                            <div className="w-full h-32 flex items-center justify-center bg-black/20">
+                              <FileText className="w-12 h-12 text-[#F59E0B]" />
+                            </div>
+                          )}
+                          <div className="p-3 w-full text-right">
+                            <p className="font-bold text-sm text-white truncate">{doc.name}</p>
+                            <p className="text-[10px] text-gray-400 font-mono mt-1 uppercase">{doc.type}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

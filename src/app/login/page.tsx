@@ -43,7 +43,15 @@ export default function LoginPage() {
       <div className="w-full max-w-lg bg-[#111827] border border-[#1F2937] rounded-2xl p-8 shadow-2xl relative z-10 backdrop-blur-xl">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-[#0B0F19] p-4 rounded-full border border-[#2563EB] shadow-[0_0_20px_rgba(37,99,235,0.4)] relative">
-            <img src="/logo.png" alt="NCSC" className="w-16 h-16 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/Public/logo.png' }} />
+            <img
+              src="/logo.png"
+              alt="NCSC"
+              className="w-16 h-16 object-contain"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/public/logo.png';
+              }}
+            />
             <div className="absolute inset-0 rounded-full bg-[#2563EB]/10 animate-ping"></div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-white tracking-wider text-center">النظام الأمني الوطني</h1>
