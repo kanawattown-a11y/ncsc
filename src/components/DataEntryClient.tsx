@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusCircle, Upload, Search, Edit2, FileText, CheckCircle, AlertTriangle, X, ShieldCheck, Download, Eye } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/context/ToastContext";
 import CitizenProfileModal from "./CitizenProfileModal";
+import SecurityStudyModal from "./SecurityStudyModal";
+import { Files } from "lucide-react";
 
 export default function DataEntryClient({ initialData }: { initialData: any[] }) {
   const [people, setPeople] = useState(initialData);
@@ -16,17 +18,33 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
   const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showStudyModal, setShowStudyModal] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
+  const [editingRecords, setEditingRecords] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<any>({ WARRANT_TYPES: [], BRANCHES: [], SEVERITIES: [] });
+
+  useEffect(() => {
+    fetchConfigs();
+  }, []);
+
+  const fetchConfigs = async () => {
+    try {
+      const res = await fetch("/api/admin/config");
+      const data = await res.json();
+      setConfigs(data);
+    } catch (err) { console.error("Config load error", err); }
+  };
 
   const [formData, setFormData] = useState({
     nationalId: "", fullName: "", motherName: "",
+    civilRecord: "", civilRegistry: "",
     dateOfBirth: "", placeOfBirth: "", gender: "MALE",
     address: "", job: "", maritalStatus: "SINGLE",
     bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
   });
   const [recordData, setRecordData] = useState({
-    type: "OTHER", reason: "", source: "INTERNAL", severity: "MEDIUM"
+    type: "OTHER", reason: "", source: "INTERNAL", branch: "", severity: "MEDIUM"
   });
   const [addRecordMode, setAddRecordMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,7 +110,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
       setSelectedFiles([]);
       setPortraitIndex(null);
       setFormData({
-        nationalId: "", fullName: "", motherName: "",
+        nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
         dateOfBirth: "", placeOfBirth: "", gender: "MALE",
         address: "", job: "", maritalStatus: "SINGLE",
         bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
@@ -106,10 +124,17 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
   };
 
   const handleEditClick = (person: any) => {
+    setAddRecordMode(false);
+    setRecordData({ type: "OTHER", reason: "", source: "INTERNAL", branch: "", severity: "MEDIUM" });
+    setSelectedFiles([]);
+    setPortraitIndex(null);
+    setEditingRecords(person.records || []);
     setFormData({
       nationalId: person.nationalId,
       fullName: person.fullName,
       motherName: person.motherName || "",
+      civilRecord: person.civilRecord || "",
+      civilRegistry: person.civilRegistry || "",
       dateOfBirth: person.dateOfBirth ? new Date(person.dateOfBirth).toISOString().split('T')[0] : "",
       placeOfBirth: person.placeOfBirth || "",
       gender: person.gender || "MALE",
@@ -131,26 +156,60 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
     setIsSubmitting(true);
 
     try {
+      const payload = {
+        ...formData,
+        records: [
+          ...(addRecordMode ? [recordData] : []),
+          ...editingRecords
+        ]
+      };
+
       if (role === "ADMIN") {
         // Direct Action for Admin
         const res = await fetch(`/api/persons/${selectedPersonId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
+        // 2. Multi-File Upload for Edit
+        if (selectedFiles.length > 0) {
+          setUploadStatus("uploading");
+          for (let i = 0; i < selectedFiles.length; i++) {
+            const f = selectedFiles[i];
+            setUploadMessage(`جاري رفع الملف (${i + 1}/${selectedFiles.length}): ${f.name}`);
+            const authRes = await fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                personId: selectedPersonId,
+                nationalId: data.nationalId,
+                fileName: f.name.replace(/[^a-zA-Z0-9.\-]/g, "_"),
+                fileType: f.type,
+                docType: f.type.includes("pdf") ? "PDF" : (f.type.includes("image") ? "IMAGE" : "OTHER"),
+                setAsPortrait: i === portraitIndex
+              })
+            });
+            const authData = await authRes.json();
+            if (!authRes.ok) continue;
+            await fetch(authData.uploadUrl, { method: "PUT", headers: { "Content-Type": f.type }, body: f });
+          }
+        }
+
         setPeople(people.map(p => p.id === selectedPersonId ? data : p));
         setShowEditModal(false);
         setFormData({
-          nationalId: "", fullName: "", motherName: "",
+          nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
           dateOfBirth: "", placeOfBirth: "", gender: "MALE",
           address: "", job: "", maritalStatus: "SINGLE",
           bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
         });
+        setSelectedFiles([]);
+        setPortraitIndex(null);
         setSelectedPersonId(null);
-        showToast("تم تحديث بيانات الملف بنجاح.", "success");
+        showToast("تم تحديث بيانات الملف والوثائق بنجاح.", "success");
       } else {
         // Request Action for Data Entry
         const res = await fetch("/api/requests", {
@@ -158,20 +217,22 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             personId: selectedPersonId,
-            proposedChanges: formData
+            proposedChanges: payload
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        showToast("تم إرسال طلب التعديل بنجاح لمراجعة الأدمن.", "success");
+        showToast("تم إرسال طلب التعديل (مع القيود والوثائق) بنجاح لمراجعة الأدمن.", "success");
         setShowEditModal(false);
         setFormData({
-          nationalId: "", fullName: "", motherName: "",
+          nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
           dateOfBirth: "", placeOfBirth: "", gender: "MALE",
           address: "", job: "", maritalStatus: "SINGLE",
           bloodType: "", physicalMarks: "", photoUrl: "", notes: ""
         });
+        setSelectedFiles([]);
+        setPortraitIndex(null);
         setSelectedPersonId(null);
       }
     } catch (err: any) {
@@ -315,7 +376,13 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                           onClick={() => handleEditClick(person)}
                           className="text-gray-400 hover:text-white bg-[#1F2937]/50 border border-[#374151] hover:bg-[#374151] px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs"
                         >
-                          <Edit2 className="w-4 h-4" /> طلب تعديل
+                          <Edit2 className="w-4 h-4" /> {role === "ADMIN" ? "تعديل مباشرة" : "طلب تعديل"}
+                        </button>
+                        <button
+                          onClick={() => { setActiveProfile(person); setShowStudyModal(true); }}
+                          className="text-blue-400 hover:text-white bg-blue-600/10 border border-blue-600/30 hover:bg-blue-600 px-3 py-1.5 rounded transition-all flex items-center gap-2 text-xs font-bold"
+                        >
+                          <Files className="w-4 h-4" /> الدراسة الأمنية
                         </button>
                       </td>
                     </tr>
@@ -347,6 +414,16 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">اسم الأم</label>
                   <input placeholder="اسم الأم" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.motherName} onChange={e => setFormData(p => ({ ...p, motherName: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1 font-bold">القيد</label>
+                    <input placeholder="مثال: 4/12" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm font-mono" value={formData.civilRecord} onChange={e => setFormData(p => ({ ...p, civilRecord: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1 font-bold">الأمانة</label>
+                    <input placeholder="أمانة السجل" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm" value={formData.civilRegistry} onChange={e => setFormData(p => ({ ...p, civilRegistry: e.target.value }))} />
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">تاريخ الميلاد</label>
@@ -401,12 +478,12 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1 font-bold">وصف حر (تفاصيل إضافية / الحالة العامة)</label>
-                <textarea 
+                <textarea
                   rows={4}
-                  placeholder="اكتب هنا أي تفاصيل إضافية لا تغطيها الخانات أعلاه..." 
-                  className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm focus:ring-1 focus:ring-blue-500 outline-none" 
-                  value={formData.notes} 
-                  onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} 
+                  placeholder="اكتب هنا أي تفاصيل إضافية لا تغطيها الخانات أعلاه..."
+                  className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                  value={formData.notes}
+                  onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
                 />
               </div>
 
@@ -422,13 +499,16 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 {addRecordMode && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4">
                     <div>
-                      <label className="text-sm text-[#EF4444] block mb-1">تصنيف הקيد</label>
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">التصنيف</label>
                       <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.type} onChange={e => setRecordData(p => ({ ...p, type: e.target.value }))}>
-                        <option value="CRIMINAL">مذكرة جلب (جرم جنائي)</option>
-                        <option value="SECURITY">تعميم أمني / مطلوب مخابرات</option>
-                        <option value="TRAVEL_BAN">منع المغادرة (سفر)</option>
-                        <option value="WANTED">مطلوب أمن الدولة</option>
-                        <option value="OTHER">إشارة حظر تنقل</option>
+                        {configs.WARRANT_TYPES?.map((t: string) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">الجهة الطالبة (الفرع)</label>
+                      <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.branch} onChange={e => setRecordData(p => ({ ...p, branch: e.target.value }))}>
+                        <option value="">بدون تحديد</option>
+                        {configs.BRANCHES?.map((b: string) => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                     <div>
@@ -438,9 +518,9 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                     <div>
                       <label className="text-sm text-[#EF4444] block mb-1">الدرجة</label>
                       <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.severity} onChange={e => setRecordData(p => ({ ...p, severity: e.target.value }))}>
-                        <option value="HIGH">عالي الخطورة (التوقيف المباشر)</option>
-                        <option value="MEDIUM">متوسط (الاستجواب الميداني)</option>
-                        <option value="LOW">منخفض (المراقبة اللاحقة)</option>
+                        <option value="HIGH">عالية (توقيف مباشر)</option>
+                        <option value="MEDIUM">متوسطة (تدقيق أمني)</option>
+                        <option value="LOW">منخفضة (مراقبة)</option>
                       </select>
                     </div>
                   </div>
@@ -534,12 +614,22 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                   <input readOnly className="w-full bg-[#0B0F19] text-gray-500 border border-[#1F2937] rounded p-3 font-mono opacity-60 text-sm" value={formData.nationalId} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1 font-bold">الاسم الكامل *</label>
-                  <input required className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.fullName} onChange={e => setFormData(p => ({ ...p, fullName: e.target.value }))} />
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">الاسم الرباعي الكامل *</label>
+                  <input required placeholder="الاسم الكامل" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.fullName} onChange={e => setFormData(p => ({ ...p, fullName: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1 font-bold">اسم الأم</label>
                   <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.motherName} onChange={e => setFormData(p => ({ ...p, motherName: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1 font-bold text-amber-500">القيد</label>
+                    <input placeholder="مثال: 4/12" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm font-mono" value={formData.civilRecord} onChange={e => setFormData(p => ({ ...p, civilRecord: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1 font-bold text-amber-500">الأمانة</label>
+                    <input placeholder="أمانة السجل" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.civilRegistry} onChange={e => setFormData(p => ({ ...p, civilRegistry: e.target.value }))} />
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1 font-bold">تاريخ الميلاد</label>
@@ -547,7 +637,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1 font-bold">مكان الميلاد</label>
-                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.placeOfBirth} onChange={e => setFormData(p => ({ ...p, placeOfBirth: e.target.value }))} />
+                  <input placeholder="المدينة/البلدة" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.placeOfBirth} onChange={e => setFormData(p => ({ ...p, placeOfBirth: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1 font-bold">الجنس</label>
@@ -557,8 +647,8 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1 font-bold">المهنة الحالية</label>
-                  <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.job} onChange={e => setFormData(p => ({ ...p, job: e.target.value }))} />
+                  <label className="text-xs text-gray-500 block mb-1 font-bold">العمل/المهنة</label>
+                  <input placeholder="المهنة الحالية" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.job} onChange={e => setFormData(p => ({ ...p, job: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1 font-bold">الحالة الاجتماعية</label>
@@ -574,28 +664,233 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                   <select className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.bloodType} onChange={e => setFormData(p => ({ ...p, bloodType: e.target.value }))}>
                     <option value="">غير معروف</option>
                     <option value="A+">A+</option>
+                    <option value="A-">A-</option>
                     <option value="B+">B+</option>
+                    <option value="B-">B-</option>
                     <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
                     <option value="O+">O+</option>
+                    <option value="O-">O-</option>
                   </select>
                 </div>
               </div>
               <div className="text-right">
                 <label className="text-xs text-gray-500 block mb-1 font-bold">العنوان التفصيلي</label>
-                <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} />
+                <input placeholder="البلدة - المنطقة - الشارع - رقم البناء" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} />
               </div>
               <div className="text-right">
-                <label className="text-xs text-gray-500 block mb-1 font-bold">العلامات الفارقة والجسدية</label>
-                <input className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.physicalMarks} onChange={e => setFormData(p => ({ ...p, physicalMarks: e.target.value }))} />
+                <label className="text-xs text-gray-500 block mb-1 font-bold">العلامات الفارقة</label>
+                <input placeholder="ندبات، أوشام، إلخ" className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" value={formData.physicalMarks} onChange={e => setFormData(p => ({ ...p, physicalMarks: e.target.value }))} />
               </div>
               <div className="text-right">
-                <label className="text-xs text-gray-500 block mb-1 font-bold">تحديث الوصف الأمني الحر</label>
-                <textarea 
+                <label className="text-xs text-gray-500 block mb-1 font-bold">وصف حر (تفاصيل إضافية / الحالة العامة)</label>
+                <textarea
                   rows={4}
-                  className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm" 
-                  value={formData.notes} 
-                  onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} 
+                  placeholder="اكتب هنا أي تفاصيل إضافية لا تغطيها الخانات أعلاه..."
+                  className="w-full bg-[#0B0F19] text-white border border-[#1F2937] rounded p-3 focus:border-[#F59E0B] outline-none text-sm"
+                  value={formData.notes}
+                  onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
                 />
+              </div>
+
+              {/* EXISTING RECORDS MANAGEMENT */}
+              {editingRecords.length > 0 && (
+                <div className="mt-8 border-t border-[#1F2937] pt-8 bg-blue-500/5 -mx-6 px-6 pb-8">
+                  <h3 className="text-sm font-black text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5" /> إدارة القيود والتعميمات القائمة ({editingRecords.filter(r => r.active).length} فعال)
+                  </h3>
+
+                  <div className="space-y-4">
+                    {editingRecords.map((rec, idx) => (
+                      <div key={rec.id} className={`p-4 rounded-xl border ${rec.active ? 'bg-[#0B0F19] border-[#1F2937] border-r-4 border-r-blue-500' : 'bg-gray-900/30 border-gray-800 opacity-60'}`}>
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex gap-2">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${rec.active ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-800 text-gray-500'}`}>
+                              {rec.active ? 'قيد فعال' : 'قيد مؤرشف/ملغى'}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-600">ID: {rec.id.substr(-6)}</span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer scale-75">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={rec.active}
+                              onChange={(e) => {
+                                const newRecs = [...editingRecords];
+                                newRecs[idx].active = e.target.checked;
+                                setEditingRecords(newRecs);
+                              }}
+                            />
+                            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="text-right">
+                            <label className="text-[10px] text-gray-500 block mb-1">نوع التعميم</label>
+                            <select
+                              className="w-full bg-[#111827] text-white border border-[#1F2937] rounded p-2 text-xs"
+                              value={rec.type}
+                              onChange={e => {
+                                const newRecs = [...editingRecords];
+                                newRecs[idx].type = e.target.value;
+                                setEditingRecords(newRecs);
+                              }}
+                            >
+                              {configs.WARRANT_TYPES?.map((t: string) => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                          <div className="text-right">
+                            <label className="text-[10px] text-gray-500 block mb-1">الجهة الطالبة (الفرع)</label>
+                            <select
+                              className="w-full bg-[#111827] text-white border border-[#1F2937] rounded p-2 text-xs"
+                              value={rec.branch || ""}
+                              onChange={e => {
+                                const newRecs = [...editingRecords];
+                                newRecs[idx].branch = e.target.value;
+                                setEditingRecords(newRecs);
+                              }}
+                            >
+                              <option value="">بدون تحديد</option>
+                              {configs.BRANCHES?.map((b: string) => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div className="text-right">
+                            <label className="text-[10px] text-gray-500 block mb-1">درجة الخطورة</label>
+                            <select
+                              className="w-full bg-[#111827] text-white border border-[#1F2937] rounded p-2 text-xs"
+                              value={rec.severity}
+                              onChange={e => {
+                                const newRecs = [...editingRecords];
+                                newRecs[idx].severity = e.target.value;
+                                setEditingRecords(newRecs);
+                              }}
+                            >
+                              <option value="HIGH">عالية (توقيف مباشر)</option>
+                              <option value="MEDIUM">متوسطة (تدقيق أمني)</option>
+                              <option value="LOW">منخفضة (مراقبة)</option>
+                            </select>
+                          </div>
+                          <div className="md:col-span-2 lg:col-span-3 text-right">
+                            <label className="text-[10px] text-gray-500 block mb-1">سبب القيد / حيثيات التعميم</label>
+                            <textarea
+                              className="w-full bg-[#111827] text-white border border-[#1F2937] rounded p-2 text-xs h-16"
+                              value={rec.reason}
+                              onChange={e => {
+                                const newRecs = [...editingRecords];
+                                newRecs[idx].reason = e.target.value;
+                                setEditingRecords(newRecs);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ADD NEW RECORD SECTION */}
+              <div className="border border-[#1F2937] rounded-lg p-4 mt-6 bg-[#0B0F19]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#EF4444] text-lg uppercase tracking-tighter">إضافة تعميم أمني جديد</h3>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={addRecordMode} onChange={() => setAddRecordMode(!addRecordMode)} />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#EF4444]"></div>
+                  </label>
+                </div>
+
+                {addRecordMode && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="text-right">
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">التصنيف</label>
+                      <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.type} onChange={e => setRecordData(p => ({ ...p, type: e.target.value }))}>
+                        {configs.WARRANT_TYPES?.map((t: string) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="text-right">
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">الجهة الطالبة (الفرع)</label>
+                      <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.branch} onChange={e => setRecordData(p => ({ ...p, branch: e.target.value }))}>
+                        <option value="">بدون تحديد</option>
+                        {configs.BRANCHES?.map((b: string) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                    <div className="text-right sm:col-span-2">
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">سبب أو حيثيات القيد</label>
+                      <input required placeholder="وصف التدخل الجرمي أو مصدر البرقية..." className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.reason} onChange={e => setRecordData(p => ({ ...p, reason: e.target.value }))} />
+                    </div>
+                    <div className="text-right sm:col-span-2">
+                      <label className="text-sm text-[#EF4444] block mb-1 font-bold">الدرجة</label>
+                      <select className="w-full bg-[#111827] text-white border border-[#EF4444]/30 rounded p-3" value={recordData.severity} onChange={e => setRecordData(p => ({ ...p, severity: e.target.value }))}>
+                        <option value="HIGH">عالية (توقيف مباشر)</option>
+                        <option value="MEDIUM">متوسطة (تدقيق أمني)</option>
+                        <option value="LOW">منخفضة (مراقبة)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Multi-File Upload Section in Edit Modal */}
+              <div className="bg-[#0B0F19] border border-[#1F2937] rounded-xl p-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-white flex items-center gap-2"><Upload className="w-4 h-4 text-blue-500" /> إرفاق وثائق/صور إضافية للملف</h3>
+                  <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-colors">
+                    اختيار ملفات...
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        setSelectedFiles([...selectedFiles, ...newFiles]);
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {selectedFiles.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                    {selectedFiles.map((f, idx) => (
+                      <div key={idx} className={`relative group p-2 rounded-lg border transition-all ${portraitIndex === idx ? 'bg-blue-900/40 border-blue-500 ring-2 ring-blue-500/50' : 'bg-[#111827] border-[#1F2937] hover:border-gray-600'}`}>
+                        {f.type.includes("image") ? (
+                          <img src={URL.createObjectURL(f)} alt="preview" className="w-full aspect-square object-cover rounded shadow-sm mb-2" />
+                        ) : (
+                          <div className="w-full aspect-square flex items-center justify-center bg-[#0B0F19] rounded mb-2"><FileText className="w-8 h-8 opacity-20" /></div>
+                        )}
+                        <p className="text-[10px] text-gray-500 truncate text-center px-1 font-mono">{f.name}</p>
+
+                        {f.type.includes("image") && (
+                          <button
+                            type="button"
+                            onClick={() => setPortraitIndex(idx)}
+                            className={`absolute -top-2 -right-2 p-1.5 rounded-full shadow-xl z-20 transition-all ${portraitIndex === idx ? 'bg-blue-500 text-white scale-110' : 'bg-gray-800 text-gray-500 opacity-0 group-hover:opacity-100'}`}
+                            title="Set as Profile Portrait"
+                          >
+                            <Upload className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFiles(selectedFiles.filter((_, i) => i !== idx));
+                            if (portraitIndex === idx) setPortraitIndex(null);
+                          }}
+                          className="absolute -top-2 -left-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {uploadStatus === "uploading" && (
+                  <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/50 rounded-lg animate-pulse text-xs text-blue-400 font-bold flex items-center gap-3">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    {uploadMessage}
+                  </div>
+                )}
               </div>
 
               <div className="pt-6 flex justify-start">

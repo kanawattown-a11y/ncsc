@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, User, FileEdit } from "lucide-react";
+import { CheckCircle, XCircle, Clock, User, FileEdit, ShieldCheck } from "lucide-react";
 
 export default function AdminRequestsPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -120,13 +120,12 @@ export default function AdminRequestsPage() {
 
                     <div className="divide-y divide-[#1F2937]">
                       {Object.entries(proposed).map(([key, newValue]: [string, any]) => {
-                        const oldValue = current[key];
-                        const isChanged = String(oldValue) !== String(newValue);
-                        
                         // Map technical keys to Arabic labels
                         const labels: any = {
                           fullName: "الاسم الكامل",
                           motherName: "اسم الأم",
+                          civilRecord: "القيد",
+                          civilRegistry: "الأمانة",
                           nationalId: "الرقم الوطني",
                           dateOfBirth: "تاريخ الميلاد",
                           placeOfBirth: "مكان الميلاد",
@@ -137,8 +136,37 @@ export default function AdminRequestsPage() {
                           bloodType: "فصيلة الدم",
                           physicalMarks: "العلامات الفارقة",
                           photoUrl: "رابط الصورة الشخصية",
-                          notes: "الوصف الأمني الحر"
+                          notes: "الوصف الأمني الحر",
+                          records: "القيود والتعميمات"
                         };
+
+                        if (key === "records") {
+                          const recordsArray = newValue as any[];
+                          return (
+                            <div key={key} className="col-span-12 p-6 bg-blue-600/5 border-y border-blue-500/10 mt-4 rounded-xl">
+                               <h4 className="text-blue-400 text-[10px] font-black uppercase mb-4 flex items-center gap-2">
+                                 <ShieldCheck className="w-4 h-4" /> تفاصيل القيود والتعميمات المقترحة ({recordsArray.length})
+                               </h4>
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 {recordsArray.map((rec: any, i: number) => (
+                                   <div key={i} className={`border p-3 rounded-lg text-xs transition-all ${rec.active ? 'bg-[#0B0F19] border-blue-500/30' : 'bg-gray-900/50 border-gray-800 opacity-50'}`}>
+                                      <div className="flex justify-between items-start mb-2">
+                                         <span className={`px-2 py-0.5 rounded text-[9px] font-black ${rec.active ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-500'}`}>
+                                            {rec.active ? 'تفعيل/تحديث قيد' : 'أرشفة/إلغاء قيد'}
+                                         </span>
+                                         <span className="text-gray-500 font-mono text-[9px] uppercase">{rec.type} | {rec.severity}</span>
+                                      </div>
+                                      <p className="text-white font-medium mb-1">{rec.reason || "بدون وصف"}</p>
+                                      {!rec.id && <p className="text-green-500 text-[8px] font-black tracking-tighter">+ قيد جديد مقترح (NEW RECORD)</p>}
+                                   </div>
+                                 ))}
+                               </div>
+                            </div>
+                          );
+                        }
+
+                        const oldValue = current[key];
+                        const isChanged = String(oldValue) !== String(newValue);
 
                         return (
                           <div key={key} className={`grid grid-cols-12 gap-4 p-4 items-center transition-colors ${isChanged ? 'bg-blue-600/5' : ''}`}>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import ActivityObserver from "@/components/ActivityObserver";
 
 export const metadata: Metadata = {
   title: "NCSC - التصريح الأمني والجنائي",
@@ -20,7 +21,10 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <ActivityObserver />
+          {children}
+        </Providers>
       </body>
     </html>
   );

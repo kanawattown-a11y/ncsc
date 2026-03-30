@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShieldCheck, ShieldAlert, AlertTriangle, User as UserIcon, Building, Activity, FileText } from "lucide-react";
+import { Search, ShieldCheck, ShieldAlert, AlertTriangle, User as UserIcon, Building, Activity, FileText, X, Eye, Files, Clipboard } from "lucide-react";
+import SecurityStudyModal from "@/components/SecurityStudyModal";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [showStudyModal, setShowStudyModal] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +107,25 @@ export default function SearchPage() {
         </div>
       )}
 
+      {/* Image Fullscreen Overly */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12 animate-in zoom-in duration-300 cursor-zoom-out"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-2xl"></div>
+          <button className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white z-20 backdrop-blur-md">
+             <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen" 
+            className="relative z-10 max-w-full max-h-full object-contain rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {result && result.status === "CLEARED" && (
         <div className="bg-[#10B981]/10 border border-[#10B981]/30 rounded-xl p-6 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative overflow-hidden text-white">
           <div className="absolute -left-10 text-[10rem] opacity-5 text-[#10B981] font-bold rotate-12 select-none pointer-events-none">سليم</div>
@@ -118,10 +140,23 @@ export default function SearchPage() {
                 <div><span className="text-gray-400 block mb-1">الرقم الوطني:</span><span className="font-bold text-xl font-mono">{result.person.nationalId}</span></div>
                 <div><span className="text-gray-400 block mb-1">الاسم الكامل:</span><span className="font-bold text-xl">{result.person.fullName}</span></div>
                 <div><span className="text-gray-400 block mb-1">اسم الأم:</span><span className="font-bold text-xl">{result.person.motherName || "غير محدد"}</span></div>
+                <div className="flex gap-4">
+                  <div className="flex-1 min-w-0"><span className="text-gray-400 block mb-1">القيد:</span><span className="font-bold text-xl font-mono text-blue-400">{result.person.civilRecord || "—"}</span></div>
+                  <div className="flex-1 min-w-0"><span className="text-gray-400 block mb-1">الأمانة:</span><span className="font-bold text-xl text-blue-400">{result.person.civilRegistry || "—"}</span></div>
+                </div>
                 
                 <div><span className="text-gray-400 block mb-1">سنة ومكان الولادة:</span><span>{result.person.dateOfBirth ? new Date(result.person.dateOfBirth).toLocaleDateString("ar-SA") : "غير مدرج"} - {result.person.placeOfBirth || "غير مدرج"}</span></div>
                 <div><span className="text-gray-400 block mb-1">العمل/المهنة:</span><span>{result.person.job || "غير مدرج"}</span></div>
                 <div><span className="text-gray-400 block mb-1">العلامات الفارقة:</span><span>{result.person.physicalMarks || "لا يوجد"}</span></div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-4">
+                 <button 
+                   onClick={() => setShowStudyModal(true)}
+                   className="flex items-center gap-3 bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-lg font-black text-sm shadow-lg shadow-[#10B981]/20 transition-all active:scale-95"
+                 >
+                    <Files className="w-5 h-5" /> استخراج دراسة أمنية فورية
+                 </button>
               </div>
 
               {/* Documents Section for Cleared */}
@@ -136,18 +171,21 @@ export default function SearchPage() {
                       return (
                         <button 
                           key={i} 
-                          onClick={() => handleDocumentOpen(doc.id)} 
-                          className="bg-[#0B0F19]/60 hover:bg-[#10B981]/10 rounded-lg flex flex-col items-center border border-[#10B981]/30 transition-all group overflow-hidden"
-                        >
-                          {isImage && doc.viewUrl ? (
-                            <div className="w-full h-32 relative overflow-hidden bg-black/40">
-                              <img src={doc.viewUrl} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        onClick={() => isImage ? setFullscreenImage(doc.viewUrl || `/api/documents/${doc.id}/view`) : handleDocumentOpen(doc.id)} 
+                        className={`bg-[#0B0F19]/60 hover:bg-[#10B981]/10 rounded-lg flex flex-col items-center border border-[#10B981]/30 transition-all group overflow-hidden ${isImage ? 'cursor-zoom-in' : ''}`}
+                      >
+                        {isImage && (doc.viewUrl || doc.id) ? (
+                          <div className="w-full h-32 relative overflow-hidden bg-black/40">
+                            <img src={doc.viewUrl || `/api/documents/${doc.id}/view`} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                               <Eye className="w-8 h-8 text-white" />
                             </div>
-                          ) : (
-                            <div className="w-full h-32 flex items-center justify-center bg-black/20">
-                              <FileText className="w-12 h-12 text-[#10B981]" />
-                            </div>
-                          )}
+                          </div>
+                        ) : (
+                          <div className="w-full h-32 flex items-center justify-center bg-black/20">
+                            <FileText className="w-12 h-12 text-[#10B981]" />
+                          </div>
+                        )}
                           <div className="p-3 w-full text-right">
                             <p className="font-bold text-sm text-white truncate">{doc.name}</p>
                             <p className="text-[10px] text-gray-400 font-mono mt-1 uppercase">{doc.type}</p>
@@ -182,10 +220,23 @@ export default function SearchPage() {
                 <div><span className="text-[#EF4444]/70 block mb-1 text-sm font-bold">الرقم الوطني:</span><span className="font-bold text-2xl font-mono text-[#EF4444]">{result.person.nationalId}</span></div>
                 <div><span className="text-[#EF4444]/70 block mb-1 text-sm font-bold">الاسم الكامل:</span><span className="font-bold text-2xl text-[#EF4444]">{result.person.fullName}</span></div>
                 <div><span className="text-gray-400 block mb-1 text-sm font-bold">اسم الأم:</span><span className="font-bold text-xl">{result.person.motherName || "غير محدد"}</span></div>
+                <div className="flex gap-4 bg-red-500/10 p-2 rounded border border-red-500/20">
+                  <div className="flex-1 min-w-0"><span className="text-red-400 block mb-1 text-sm font-bold">القيد:</span><span className="font-bold text-xl font-mono text-white">{result.person.civilRecord || "—"}</span></div>
+                  <div className="flex-1 min-w-0"><span className="text-red-400 block mb-1 text-sm font-bold">الأمانة:</span><span className="font-bold text-xl text-white">{result.person.civilRegistry || "—"}</span></div>
+                </div>
                 
                 <div><span className="text-gray-400 block mb-1 text-sm font-bold">سنة ومكان الولادة:</span><span className="font-medium">{result.person.dateOfBirth ? new Date(result.person.dateOfBirth).toLocaleDateString("ar-SA") : "غير مدرج"} - {result.person.placeOfBirth || "غير مدرج"}</span></div>
                 <div><span className="text-gray-400 block mb-1 text-sm font-bold">المهنة:</span><span className="font-medium">{result.person.job || "غير مدرج"}</span></div>
                 <div><span className="text-gray-400 block mb-1 text-sm font-bold">العلامات الفارقة:</span><span className="font-medium text-amber-500">{result.person.physicalMarks || "لا يوجد"}</span></div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-4">
+                 <button 
+                   onClick={() => setShowStudyModal(true)}
+                   className="flex items-center gap-3 bg-[#EF4444] hover:bg-white hover:text-[#EF4444] text-white px-8 py-4 rounded-xl font-black text-lg shadow-2xl shadow-[#EF4444]/40 transition-all active:scale-95 border-2 border-transparent hover:border-[#EF4444]"
+                 >
+                    <Clipboard className="w-6 h-6" /> فتح ملف الدراسة الأمنية الكاملة
+                 </button>
               </div>
               
               <div className="mt-8 space-y-4">
@@ -234,12 +285,15 @@ export default function SearchPage() {
                       return (
                         <button 
                           key={i} 
-                          onClick={() => handleDocumentOpen(doc.id)} 
-                          className="bg-[#0B0F19]/60 hover:bg-[#F59E0B]/20 rounded-lg flex flex-col items-center border border-[#F59E0B]/30 transition-all group overflow-hidden shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                          onClick={() => isImage ? setFullscreenImage(doc.viewUrl || `/api/documents/${doc.id}/view`) : handleDocumentOpen(doc.id)} 
+                          className={`bg-[#0B0F19]/60 hover:bg-[#F59E0B]/20 rounded-lg flex flex-col items-center border border-[#F59E0B]/30 transition-all group overflow-hidden shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] ${isImage ? 'cursor-zoom-in' : ''}`}
                         >
-                          {isImage && doc.viewUrl ? (
+                          {isImage && (doc.viewUrl || doc.id) ? (
                             <div className="w-full h-32 relative overflow-hidden bg-black/40">
-                              <img src={doc.viewUrl} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                              <img src={doc.viewUrl || `/api/documents/${doc.id}/view`} alt={doc.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                 <Eye className="w-8 h-8 text-white" />
+                              </div>
                             </div>
                           ) : (
                             <div className="w-full h-32 flex items-center justify-center bg-black/20">
@@ -260,6 +314,12 @@ export default function SearchPage() {
             </div>
           </div>
         </div>
+      )}
+      {showStudyModal && result && result.person && (
+        <SecurityStudyModal 
+          person={result.person} 
+          onClose={() => setShowStudyModal(false)}
+        />
       )}
     </div>
   );

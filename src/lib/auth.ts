@@ -49,6 +49,19 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 Days
   },
   callbacks: {
+    async signIn({ user }) {
+      if (user?.id) {
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date(), lastActive: new Date() }
+          } as any); // Cast to any because Prisma types might be stale
+        } catch (e) {
+          console.error("Failed to update lastLogin", e);
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

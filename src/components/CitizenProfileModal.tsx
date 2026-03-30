@@ -10,9 +10,30 @@ interface CitizenProfileModalProps {
 
 export default function CitizenProfileModal({ person, onClose, onUploadClick }: CitizenProfileModalProps) {
   const isBanned = person.records && person.records.some((r: any) => r.active);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex justify-center items-center p-4 animate-in fade-in duration-300">
+      
+      {/* Image Fullscreen Overly */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12 animate-in zoom-in duration-300 cursor-zoom-out"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-2xl"></div>
+          <button className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white z-20 backdrop-blur-md">
+             <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen" 
+            className="relative z-10 max-w-full max-h-full object-contain rounded-xl shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       <div className="bg-[#0B0F19] border border-[#1F2937] rounded-3xl w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh]">
         
         {/* Header with status */}
@@ -39,7 +60,10 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick }: 
             
             {/* Left Column: Portrait & ID */}
             <div className="space-y-6">
-              <div className="aspect-[3/4] bg-[#111827] border-2 border-[#1F2937] rounded-2xl overflow-hidden relative group">
+              <div 
+                onClick={() => person.photoUrl && setFullscreenImage(person.photoUrl)}
+                className="aspect-[3/4] bg-[#111827] border-2 border-[#1F2937] rounded-2xl overflow-hidden relative group cursor-zoom-in"
+              >
                 {person.photoUrl ? (
                   <img src={person.photoUrl} alt={person.fullName} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                 ) : (
@@ -66,6 +90,10 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick }: 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <InfoItem icon={<UserIcon />} label="الاسم الرباعي" value={person.fullName} />
                 <InfoItem icon={<UserIcon />} label="اسم الأم" value={person.motherName || "—"} />
+                <div className="grid grid-cols-2 gap-2">
+                  <InfoItem icon={<Shield />} label="القيد" value={person.civilRecord || "—"} />
+                  <InfoItem icon={<Shield />} label="الأمانة" value={person.civilRegistry || "—"} />
+                </div>
                 <InfoItem icon={<Calendar />} label="تاريخ الميلاد" value={person.dateOfBirth ? new Date(person.dateOfBirth).toLocaleDateString("ar-SA") : "—"} />
                 <InfoItem icon={<MapPin />} label="مكان الميلاد" value={person.placeOfBirth || "—"} />
                 <InfoItem icon={<UserIcon />} label="الجنس" value={person.gender === 'MALE' ? 'ذكر' : (person.gender === 'FEMALE' ? 'أنثى' : "—")} />
@@ -139,7 +167,11 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick }: 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {person.documents?.length > 0 ? (
                     person.documents.map((doc: any) => (
-                      <div key={doc.id} className="bg-[#111827] p-3 rounded-xl border border-[#1F2937] flex items-center justify-between group hover:border-blue-500/50 transition-all">
+                      <div 
+                        key={doc.id} 
+                        onClick={() => doc.type === 'IMAGE' && setFullscreenImage(`/api/documents/${doc.id}/view`)}
+                        className={`bg-[#111827] p-3 rounded-xl border border-[#1F2937] flex items-center justify-between group hover:border-blue-500/50 transition-all ${doc.type === 'IMAGE' ? 'cursor-zoom-in' : ''}`}
+                      >
                         <div className="flex items-center gap-3 overflow-hidden">
                           <FileText className="w-5 h-5 text-blue-500 shrink-0" />
                           <div className="truncate">
@@ -147,9 +179,12 @@ export default function CitizenProfileModal({ person, onClose, onUploadClick }: 
                              <p className="text-[10px] text-gray-500">{doc.type}</p>
                           </div>
                         </div>
-                        <button className="p-2 opacity-50 group-hover:opacity-100 hover:text-blue-400 transition-opacity">
-                           <Download className="w-4 h-4" />
-                        </button>
+                        <div className="flex gap-1">
+                          {doc.type === 'IMAGE' && <Eye className="w-3.5 h-3.5 text-gray-500 group-hover:text-blue-400" />}
+                          <button className="p-2 opacity-50 group-hover:opacity-100 hover:text-blue-400 transition-opacity">
+                             <Download className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -187,4 +222,5 @@ function InfoItem({ icon, label, value }: { icon: any, label: string, value: str
   );
 }
 
-import React from "react";
+import React, { useState } from "react";
+import { Eye } from "lucide-react";

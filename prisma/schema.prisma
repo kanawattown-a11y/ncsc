@@ -27,6 +27,8 @@ model User {
   status    UserStatus @default(PENDING)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  lastLogin DateTime?  // Timestamp of last successful login
+  lastActive DateTime? // Timestamp of last heartbeat/activity
 
   auditLogs        AuditLog[]
   messagesSent     ChatMessage[] @relation("MessageSender")
@@ -40,6 +42,8 @@ model Person {
   nationalId    String    @unique
   fullName      String
   motherName    String?
+  civilRecord   String?   // القيد
+  civilRegistry String?   // الأمانة
   placeOfBirth  String?
   dateOfBirth   DateTime?
   gender        String?
@@ -97,16 +101,24 @@ enum RecordType {
 model SecurityRecord {
   id        String       @id @default(cuid())
   personId  String
-  type      RecordType
+  type      String       // Changed from RecordType Enum to String for dynamic admin control
   reason    String
-  source    RecordSource
-  severity  String?      // e.g. HIGH, MEDIUM, LOW
+  source    RecordSource @default(INTERNAL)
+  branch    String?      // New: Requesting Branch (e.g., السياسي, الجوية, الجنائية)
+  severity  String?      // e.g. HIGH, MEDIUM, LOW (Can be custom names now)
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   deletedAt DateTime?
 
   person    Person       @relation(fields: [personId], references: [id])
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. "WARRANT_TYPES", "BRANCHES", "SEVERITIES"
+  value     Json     // List of strings or objects
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {

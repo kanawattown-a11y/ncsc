@@ -32,18 +32,58 @@ export async function PATCH(
     if (status === "APPROVED") {
       const changes = JSON.parse(editRequest.proposedChanges) as any;
       
-      // 1. Update the actual Person record
-      await prisma.person.update({
+      // 1. Update the actual Person record (All fields synchronized)
+      const person = await prisma.person.update({
         where: { id: editRequest.entityId! },
         data: {
           fullName: changes.fullName,
           motherName: changes.motherName,
           dateOfBirth: changes.dateOfBirth ? new Date(changes.dateOfBirth) : undefined,
           placeOfBirth: changes.placeOfBirth,
+          gender: changes.gender,
+          address: changes.address,
           job: changes.job,
+          maritalStatus: changes.maritalStatus,
+          bloodType: changes.bloodType,
           physicalMarks: changes.physicalMarks,
+          photoUrl: changes.photoUrl,
+          civilRecord: changes.civilRecord,
+          civilRegistry: changes.civilRegistry,
+          notes: changes.notes,
         }
       });
+
+      // 2. Handle SecurityRecord Updates/Crates for Approval
+      const records = changes.records;
+      if (records && Array.isArray(records)) {
+        for (const rec of records) {
+          if (rec.id) {
+            // Update existing
+            await prisma.securityRecord.update({
+              where: { id: rec.id },
+              data: {
+                type: rec.type,
+                reason: rec.reason,
+                severity: rec.severity,
+                active: rec.active !== undefined ? rec.active : true,
+                source: rec.source || "INTERNAL"
+              }
+            });
+          } else {
+            // Create new record
+            await prisma.securityRecord.create({
+              data: {
+                personId: person.id,
+                type: rec.type,
+                reason: rec.reason,
+                severity: rec.severity,
+                source: rec.source || "INTERNAL",
+                active: true
+              }
+            });
+          }
+        }
+      }
     }
 
     // 2. Mark request as finalized
