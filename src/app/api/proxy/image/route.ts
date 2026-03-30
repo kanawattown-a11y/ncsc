@@ -21,24 +21,22 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. RADICAL FIX (JAZRI): If the URL is an internal document, bypass the API and Cookie system entirely.
-    // Parse /api/documents/[id]/view
-    if (imageUrl.includes("/api/documents/")) {
-      const parts = imageUrl.split("/");
-      const docIdIndex = parts.indexOf("documents") + 1;
-      const documentId = parts[docIdIndex];
-
-      if (documentId) {
-        // Query Prisma directly
+    // 1. RADICAL BYPASS (JAZRI): Extract ID directly from the raw URL parameter
+    // Pattern: matches /api/documents/ID/view
+    const docMatch = imageUrl.match(/\/api\/documents\/([a-zA-Z0-9]+)/);
+    if (docMatch && docMatch[1]) {
+      const documentId = docMatch[1];
+      try {
         const { prisma } = await import("@/lib/prisma");
         const { getPresignedViewUrl } = await import("@/lib/s3");
 
         const document = await (prisma as any).document.findUnique({ where: { id: documentId } });
         if (document) {
-          // Generate S3 URL directly
-          imageUrl = await getPresignedViewUrl(document.fileKey);
-          // Fetch the S3 URL DIRECTLY (no cookies needed for S3 signed URLs)
-          const s3Response = await fetch(imageUrl);
+          // GENERATE SIGNED URL
+          const s3Url = await getPresignedViewUrl(document.fileKey);
+          
+          // FETCH DIRECTLY FROM S3 (Bypasses site SSL/Auth)
+          const s3Response = await fetch(s3Url);
           if (s3Response.ok) {
             const blob = await s3Response.blob();
             const contentType = s3Response.headers.get("content-type") || "image/jpeg";
@@ -47,23 +45,29 @@ export async function GET(request: Request) {
                 "Content-Type": contentType,
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=86400",
+                "X-Proxy-Source": "S3-Bypass-Final"
               },
             });
+          } else {
+            console.error(`S3 Direct Fetch Failed: ${s3Response.status}`);
           }
         }
+      } catch (innerError) {
+        console.error("Internal Bypass Logic Error:", innerError);
       }
     }
 
     // 2. FORWARD IDENTITY: Fallback for generic external or other internal requests
+    // Important: Use a FULL URL for internal fetch
+    const finalUrl = imageUrl.startsWith("/") ? `${origin}${imageUrl}` : imageUrl;
     const cookie = request.headers.get("cookie") || "";
-    const response = await fetch(imageUrl, {
-      headers: { cookie },
-    });
+    
+    const response = await fetch(finalUrl, { headers: { cookie } });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Proxy Fetch Error (${response.status}): ${errorText}`);
-      throw new Error(`Failed to fetch image: ${response.status}`);
+      console.error(`Proxy Fallback Error (${response.status}): ${errorText}`);
+      throw new Error(`Fallback fetch failed with status ${response.status}`);
     }
 
     const blob = await response.blob();
@@ -74,10 +78,11 @@ export async function GET(request: Request) {
         "Content-Type": contentType,
         "Access-Control-Allow-Origin": "*",
         "Cache-Control": "public, max-age=86400",
+        "X-Proxy-Source": "Fallback-Fetch"
       },
     });
   } catch (error) {
-    console.error("Image proxy error:", error);
-    return new NextResponse(`Failed to proxy image: ${error instanceof Error ? error.message : 'Unknown'}`, { status: 500 });
+    console.error("ULTIMATE PROXY ERROR:", error);
+    return new NextResponse(`CRITICAL_PROXY_FAILURE: ${error instanceof Error ? error.message : 'Unknown Reason'}`, { status: 500 });
   }
 }
