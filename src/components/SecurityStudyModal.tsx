@@ -58,23 +58,37 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     try {
       setIsCapturing(true);
       
-      // 1. Point the image to our internal proxy to bypass CORS/Tainted canvas
+      // 1. Force the image into a Base64 string to bypass ALL CORS/Tainting issues
       if (person.photoUrl) {
-        const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(person.photoUrl)}`;
-        const img = reportRef.current.querySelector('img[alt="Subject"]') as HTMLImageElement;
-        if (img) img.src = proxiedUrl;
-        
-        // Wait a small moment for proxy to load
-        await new Promise(r => setTimeout(r, 500));
+        try {
+          const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(person.photoUrl)}`;
+          const response = await fetch(proxiedUrl);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+          });
+          reader.readAsDataURL(blob);
+          const base64Data = await base64Promise;
+
+          const img = reportRef.current.querySelector('img[alt="Subject"]') as HTMLImageElement;
+          if (img) {
+            img.src = base64Data;
+            // Wait for image load to be 100% sure
+            await new Promise(r => { img.onload = r; if (img.complete) r(null); });
+          }
+        } catch (e) {
+          console.error("Failed to base64 image for clean capture", e);
+        }
       }
 
       const element = reportRef.current;
       
       const canvas = await html2canvas(element, {
         backgroundColor: "#0B0F19",
-        scale: 4, // ULTRA HIGH RESOLUTION (4x Pixels)
+        scale: 4, 
         useCORS: true,
-        allowTaint: false, // Must be false for toDataURL to work with CORS images
+        allowTaint: false,
         logging: false,
         imageTimeout: 0,
         windowWidth: element.scrollWidth,
@@ -100,31 +114,38 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[70] flex justify-center items-end sm:items-center p-0 sm:p-4">
       <div className="bg-[#0B0F19] border-t-2 sm:border-2 border-[#1F2937] rounded-t-2xl sm:rounded-none w-full sm:max-w-3xl shadow-[0_0_100px_rgba(37,99,235,0.2)] relative flex flex-col max-h-[95dvh] sm:max-h-[95vh] overflow-hidden">
         
+        {/* Load Cairo font explicitly for html2canvas */}
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+
         <div 
           ref={reportRef} 
           dir="rtl"
-          className="flex flex-col bg-[#0B0F19] overflow-y-auto text-right"
+          className="flex flex-col bg-[#0B0F19] overflow-y-auto text-right report-content"
           style={{ 
-            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            fontFamily: "'Cairo', 'Segoe UI', sans-serif",
             letterSpacing: '0', 
             textRendering: 'optimizeLegibility'
           }}
         >
-          {/* Internal style block to force html2canvas to join Arabic letters */}
+          {/* Detailed CSS overrides to force html2canvas to join Arabic letters */}
           <style dangerouslySetInnerHTML={{ __html: `
-            [ref="reportRef"] *, .report-content * { 
+            .report-content, .report-content * { 
               letter-spacing: 0px !important; 
               word-spacing: normal !important;
-              font-feature-settings: "kern" 1;
+              font-feature-settings: 'liga' on, 'kern' on !important;
+              font-variant-ligatures: common-ligatures !important;
+              -webkit-font-smoothing: antialiased;
+              text-shadow: none !important;
             }
           `}} />
+          
           {/* Official Header */}
-          <div className="p-4 sm:p-8 border-b-2 border-[#1F2937] flex justify-between items-start bg-gradient-to-b from-[#111827] to-transparent shrink-0">
-            <div className="flex gap-3 sm:gap-6 items-center min-w-0">
+          <div className="p-4 sm:p-8 border-b-2 border-[#1F2937] flex flex-row-reverse justify-between items-start bg-gradient-to-b from-[#111827] to-transparent shrink-0">
+            <div className="flex flex-row-reverse gap-3 sm:gap-6 items-center min-w-0">
                <div className="w-12 h-12 sm:w-24 sm:h-24 bg-white/5 border border-white/10 rounded flex items-center justify-center p-1 sm:p-2 shrink-0">
                   <Shield className="w-8 h-8 sm:w-16 sm:h-16 text-blue-500 opacity-50" />
                </div>
-               <div className="min-w-0">
+               <div className="text-right">
                   <h1 className="text-lg sm:text-2xl font-black text-white tracking-widest uppercase leading-tight">المركز الوطني للمعلومات الأمنية المركزية
                   </h1>
                   <p className="text-blue-500 font-mono text-[9px] sm:text-xs mt-0.5 sm:mt-1 font-bold tracking-widest">NCSC // OFFICIAL SECURITY DOSSIER</p>
@@ -134,7 +155,7 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
                </div>
             </div>
             {!isCapturing && (
-              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-gray-500 hover:text-white shrink-0 ml-2">
+              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-gray-500 hover:text-white shrink-0">
                 <X className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             )}
