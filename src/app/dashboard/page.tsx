@@ -9,6 +9,7 @@ import { Skeleton, CardSkeleton } from "@/components/SkeletonLoader";
 
 export default function DashboardHomePage() {
   const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,33 +88,35 @@ export default function DashboardHomePage() {
           <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-widest">مطلوبين أمنياً</p>
         </div>
 
-        {/* Online Status Widget */}
-        <div className="bg-[#111827] border-2 border-blue-600/30 rounded-xl p-6 flex flex-col shadow-[0_0_20px_rgba(37,99,235,0.1)] relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-          <div className="flex justify-between items-start mb-4">
-             <div className="bg-blue-600/10 p-2 rounded-lg">
+        {/* Online Status Widget - ADMIN ONLY */}
+        {role === 'ADMIN' && (
+          <div className="bg-[#111827] border-2 border-blue-600/30 rounded-xl p-6 flex flex-col shadow-[0_0_20px_rgba(37,99,235,0.1)] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="bg-blue-600/10 p-2 rounded-lg">
                 <Users className="w-5 h-5 text-blue-500" />
-             </div>
-             <div className="flex items-center gap-1.5 pb-1">
+              </div>
+              <div className="flex items-center gap-1.5 pb-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                 <span className="text-[10px] font-black text-green-500 uppercase tracking-tighter">Live Monitor</span>
-             </div>
-          </div>
-          <div className="flex items-end gap-2 mb-2">
-             <h3 className="text-3xl font-black text-white font-mono leading-none">{data?.counters?.online?.total || 0}</h3>
-             <span className="text-[10px] text-gray-500 mb-1 font-bold">أونلاين الآن</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-auto">
-             <div className="bg-[#0B0F19] p-2 rounded-lg border border-[#1F2937]">
+              </div>
+            </div>
+            <div className="flex items-end gap-2 mb-2">
+              <h3 className="text-3xl font-black text-white font-mono leading-none">{data?.counters?.online?.total || 0}</h3>
+              <span className="text-[10px] text-gray-500 mb-1 font-bold">أونلاين الآن</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-auto">
+              <div className="bg-[#0B0F19] p-2 rounded-lg border border-[#1F2937]">
                 <p className="text-[9px] text-gray-500 font-bold mb-0.5">مدخلين</p>
                 <p className="text-sm font-black text-blue-400 font-mono">{data?.counters?.online?.dataEntry || 0}</p>
-             </div>
-             <div className="bg-[#0B0F19] p-2 rounded-lg border border-[#1F2937]">
+              </div>
+              <div className="bg-[#0B0F19] p-2 rounded-lg border border-[#1F2937]">
                 <p className="text-[9px] text-gray-500 font-bold mb-0.5">حواجز</p>
                 <p className="text-sm font-black text-amber-500 font-mono">{data?.counters?.online?.checkpoint || 0}</p>
-             </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-[#111827] border border-[#EF4444]/30 rounded-xl p-6 flex flex-col items-center justify-center text-center shadow-[0_0_15px_rgba(239,68,68,0.1)]">
           <div className="bg-[#EF4444]/10 p-4 rounded-full mb-4 animate-pulse">

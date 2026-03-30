@@ -22,7 +22,7 @@ export default async function DataEntryPage() {
       <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-6 shadow-lg flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">إدارة البيانات والمستندات المشفرة</h1>
-          <p className="text-gray-400 text-sm">أضف القيود فوراً وارفع مستندات الإدانة (PDF/صور) مباشرة لخزائن S3.</p>
+          <p className="text-gray-400 text-sm">أضف القيود فوراً وارفع مستندات الإدانة (PDF/صور) مباشرة لخزائن النظام.</p>
         </div>
         <div className="bg-[#10B981]/10 p-4 rounded-full border border-[#10B981]/30">
           <Database className="w-8 h-8 text-[#10B981]" />

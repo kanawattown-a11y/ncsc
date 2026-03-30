@@ -5,6 +5,7 @@ import { PlusCircle, Upload, Search, Edit2, FileText, CheckCircle, AlertTriangle
 import { useSession } from "next-auth/react";
 import { useToast } from "@/context/ToastContext";
 import CitizenProfileModal from "./CitizenProfileModal";
+import SecurityStudyModal from "./SecurityStudyModal";
 import { Files } from "lucide-react";
 import { analyzeSecurity } from "@/lib/intelligence";
 
@@ -192,31 +193,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        // 2. Multi-File Upload for Edit
-        if (selectedFiles.length > 0) {
-          setUploadStatus("uploading");
-          for (let i = 0; i < selectedFiles.length; i++) {
-            const f = selectedFiles[i];
-            setUploadMessage(`جاري رفع الملف (${i + 1}/${selectedFiles.length}): ${f.name}`);
-            const authRes = await fetch("/api/upload", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                personId: selectedPersonId,
-                nationalId: data.nationalId,
-                fileName: f.name.replace(/[^a-zA-Z0-9.\-]/g, "_"),
-                fileType: f.type,
-                docType: f.type.includes("pdf") ? "PDF" : (f.type.includes("image") ? "IMAGE" : "OTHER"),
-                setAsPortrait: i === portraitIndex
-              })
-            });
-            const authData = await authRes.json();
-            if (!authRes.ok) continue;
-            await fetch(authData.uploadUrl, { method: "PUT", headers: { "Content-Type": f.type }, body: f });
-          }
-        }
-
-        setPeople(people.map(p => p.id === selectedPersonId ? data : p));
+        setPeople(people.map(p => p.id === selectedPersonId ? data.person : p));
         setShowEditModal(false);
         setFormData({
           nationalId: "", fullName: "", motherName: "", civilRecord: "", civilRegistry: "",
@@ -280,7 +257,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
           nationalId: person?.nationalId,
           fileName: file.name.replace(/[^a-zA-Z0-9.\-]/g, "_"), // Filter bizarre characters
           fileType: file.type,
-          docType: file.type.includes("pdf") ? "PDF" : (file.type.includes("image") ? "IMAGE" : "OTHER")
+          docType: (file.type || "").includes("pdf") ? "PDF" : ((file.type || "").includes("image") ? "IMAGE" : "OTHER")
         })
       });
 
@@ -298,6 +275,19 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
 
       setUploadStatus("success");
       setUploadMessage("تم إرفاق وتشفير المستند لـ S3 بنجاح وتأمينه داخل ملف المواطن.");
+      
+      // Refresh the document list in the modal immediately
+      if (showEditModal || showProfileModal) {
+        fetch(`/api/persons/${selectedPersonId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.person) {
+              setEditingDocuments(data.person.documents || []);
+              if (showProfileModal) setActiveProfile(data.person);
+            }
+          });
+      }
+
       setTimeout(() => {
         setShowUploadModal(false);
         setUploadStatus("");
@@ -333,7 +323,10 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
     document.body.removeChild(link);
   };
 
-  const filtered = people.filter(p => p.nationalId.includes(searchTerm) || p.fullName.includes(searchTerm));
+  const filtered = people.filter(p => 
+    (p.nationalId || "").includes(searchTerm) || 
+    (p.fullName || "").includes(searchTerm)
+  );
 
   return (
     <>
@@ -397,7 +390,7 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                             <span 
                               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${report.riskLevel === 'HIGH' ? 'text-red-500 bg-red-500/10 border-red-500/30' : 'text-amber-500 bg-amber-500/10 border-amber-500/30'}`}
                             >
-                              {report.riskLevel === 'HIGH' ? 'توقيف' : 'تدقيق أمني'} ({person.records.filter((r:any)=>r.active).length})
+                              {report.riskLevel === 'HIGH' ? 'توقيف' : 'تدقيق أمني'} ({(person.records || []).filter((r:any)=>r.active).length})
                             </span>
                           )}
                         </td>
@@ -999,66 +992,23 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
                 </div>
               )}
 
-              {/* Multi-File Upload Section in Edit Modal */}
-              <div className="bg-[#0B0F19] border border-[#1F2937] rounded-xl p-6 mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-white flex items-center gap-2"><Upload className="w-4 h-4 text-blue-500" /> إرفاق وثائق/صور إضافية للملف</h3>
-                  <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-colors">
-                    اختيار ملفات...
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        const newFiles = Array.from(e.target.files || []);
-                        setSelectedFiles([...selectedFiles, ...newFiles]);
-                      }}
-                    />
-                  </label>
+              {/* Unified Upload Trigger in Edit Modal */}
+              <div className="bg-[#0B0F19] border border-[#1F2937] rounded-xl p-8 mt-6 flex flex-col items-center justify-center text-center group hover:border-blue-500/50 transition-all">
+                <div className="p-4 bg-blue-500/10 rounded-full mb-4 group-hover:bg-blue-500/20 transition-all">
+                  <Upload className="w-8 h-8 text-blue-500" />
                 </div>
-
-                {selectedFiles.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-2">
-                    {selectedFiles.map((f, idx) => (
-                      <div key={idx} className={`relative group p-2 rounded-lg border transition-all ${portraitIndex === idx ? 'bg-blue-900/40 border-blue-500 ring-2 ring-blue-500/50' : 'bg-[#111827] border-[#1F2937] hover:border-gray-600'}`}>
-                        {f.type.includes("image") ? (
-                          <img src={URL.createObjectURL(f)} alt="preview" className="w-full aspect-square object-cover rounded shadow-sm mb-2" />
-                        ) : (
-                          <div className="w-full aspect-square flex items-center justify-center bg-[#0B0F19] rounded mb-2"><FileText className="w-8 h-8 opacity-20" /></div>
-                        )}
-                        <p className="text-[10px] text-gray-500 truncate text-center px-1 font-mono">{f.name}</p>
-
-                        {f.type.includes("image") && (
-                          <button
-                            type="button"
-                            onClick={() => setPortraitIndex(idx)}
-                            className={`absolute -top-2 -right-2 p-1.5 rounded-full shadow-xl z-20 transition-all ${portraitIndex === idx ? 'bg-blue-500 text-white scale-110' : 'bg-gray-800 text-gray-500 opacity-0 group-hover:opacity-100'}`}
-                            title="Set as Profile Portrait"
-                          >
-                            <Upload className="w-3 h-3" />
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedFiles(selectedFiles.filter((_, i) => i !== idx));
-                            if (portraitIndex === idx) setPortraitIndex(null);
-                          }}
-                          className="absolute -top-2 -left-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {uploadStatus === "uploading" && (
-                  <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/50 rounded-lg animate-pulse text-xs text-blue-400 font-bold flex items-center gap-3">
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    {uploadMessage}
-                  </div>
-                )}
+                <h3 className="font-bold text-white mb-2">إدراج وثائق إضافية رسمية</h3>
+                <p className="text-xs text-gray-500 mb-6 max-w-sm">سيتم فتح نافذة الرفع المؤمنة مباشرة لرفع الملفات إلى سحابة S3 وربطها بهذا السجل فوراً.</p>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setSelectedPersonId(selectedPersonId);
+                    setShowUploadModal(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-sm font-black transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                >
+                  <Files className="w-4 h-4" /> فتح نافذة الرفع المؤمنة الآن
+                </button>
               </div>
 
               <div className="pt-6 flex justify-start">
@@ -1143,6 +1093,14 @@ export default function DataEntryClient({ initialData }: { initialData: any[] })
             setSelectedPersonId(activeProfile.id);
             setShowUploadModal(true);
           }}
+        />
+      )}
+      {/* Security Study Modal */}
+      {showStudyModal && activeProfile && (
+        <SecurityStudyModal
+          person={activeProfile}
+          intelligence={analyzeSecurity(activeProfile)}
+          onClose={() => setShowStudyModal(false)}
         />
       )}
     </>
