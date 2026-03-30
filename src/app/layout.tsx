@@ -2,6 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import ActivityObserver from "@/components/ActivityObserver";
+import { Cairo } from "next/font/google";
+
+const cairo = Cairo({
+  subsets: ["arabic"],
+  weight: ["400", "700", "900"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "NCSC - التصريح الأمني والجنائي",
@@ -36,7 +43,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body>
+      <body className={cairo.className}>
         <Providers>
           <ActivityObserver />
           {children}

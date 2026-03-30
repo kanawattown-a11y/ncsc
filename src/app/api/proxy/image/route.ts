@@ -8,16 +8,21 @@ export async function GET(request: Request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const imageUrl = searchParams.get("url");
+  const { searchParams, origin } = new URL(request.url);
+  let imageUrl = searchParams.get("url");
 
   if (!imageUrl) {
     return new NextResponse("Missing URL", { status: 400 });
   }
 
+  // Handle relative URLs
+  if (imageUrl.startsWith("/")) {
+    imageUrl = `${origin}${imageUrl}`;
+  }
+
   try {
     const response = await fetch(imageUrl);
-    if (!response.ok) throw new Error("Failed to fetch image");
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
 
     const blob = await response.blob();
     const contentType = response.headers.get("content-type") || "image/jpeg";

@@ -114,9 +114,6 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[70] flex justify-center items-end sm:items-center p-0 sm:p-4">
       <div className="bg-[#0B0F19] border-t-2 sm:border-2 border-[#1F2937] rounded-t-2xl sm:rounded-none w-full sm:max-w-3xl shadow-[0_0_100px_rgba(37,99,235,0.2)] relative flex flex-col max-h-[95dvh] sm:max-h-[95vh] overflow-hidden">
         
-        {/* Load Cairo font explicitly for html2canvas */}
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
-
         <div 
           ref={reportRef} 
           dir="rtl"
