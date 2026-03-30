@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  ncsc-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ncsc-app:latest
+    container_name: ncsc-production
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection should point to RDS
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      
+      # AWS SDK variables for Document Presigning
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+    
+    # In secure Lightsail architecture, we don't expose DB externally
+    # It communicates only within the VPC

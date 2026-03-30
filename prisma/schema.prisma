@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DATA_ENTRY
+  CHECKPOINT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  username  String     @unique
+  password  String
+  role      Role       @default(CHECKPOINT)
+  status    UserStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  auditLogs        AuditLog[]
+  messagesSent     ChatMessage[] @relation("MessageSender")
+  messagesReceived ChatMessage[] @relation("MessageReceiver")
+  editRequests     EditRequest[]
+  approvedRequests EditRequest[] @relation("RequestApprover")
+}
+
+model Person {
+  id            String    @id @default(cuid())
+  nationalId    String    @unique
+  fullName      String
+  motherName    String?
+  placeOfBirth  String?
+  dateOfBirth   DateTime?
+  gender        String?
+  address       String?
+  job           String?
+  maritalStatus String?
+  bloodType     String?
+  physicalMarks String?
+  photoUrl      String?   // URL to image
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete
+
+  records       SecurityRecord[]
+  documents     Document[]
+}
+
+enum DocumentType {
+  IMAGE
+  PDF
+  OTHER
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  personId  String
+  name      String
+  type      DocumentType @default(OTHER)
+  fileKey   String       // The S3 object key (e.g., persons/123456789/doc1.pdf)
+  mimeType  String?
+  size      Int?         // Size in bytes
+  createdAt DateTime     @default(now())
+
+  person    Person       @relation(fields: [personId], references: [id])
+}
+
+enum RecordSource {
+  INTERNAL
+  EXTERNAL
+}
+
+enum RecordType {
+  SECURITY    // أمنية
+  CRIMINAL    // جنائية
+  POLITICAL   // سياسية
+  ECONOMIC    // اقتصادية
+  COURT       // محاكم وقضايا
+  TRAVEL_BAN  // منع سفر
+  EXIT_BAN    // منع خروج
+  WANTED      // مطلوب
+  OTHER       // أخرى
+}
+
+model SecurityRecord {
+  id        String       @id @default(cuid())
+  personId  String
+  type      RecordType
+  reason    String
+  source    RecordSource
+  severity  String?      // e.g. HIGH, MEDIUM, LOW
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  person    Person       @relation(fields: [personId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   
+  entity    String   
+  entityId  String?
+  details   String?  
+  timestamp DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model EditRequest {
+  id              String        @id @default(cuid())
+  dataEntryId     String
+  entity          String        
+  entityId        String?
+  proposedChanges String        
+  status          RequestStatus @default(PENDING)
+  adminId         String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  dataEntry       User          @relation(fields: [dataEntryId], references: [id])
+  admin           User?         @relation("RequestApprover", fields: [adminId], references: [id])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String?  // Optional: if null -> GENERAL ROOM. if UUID -> PRIVATE MESSAGE
+  content    String
+  timestamp  DateTime @default(now())
+
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiver   User?    @relation("MessageReceiver", fields: [receiverId], references: [id])
+}
