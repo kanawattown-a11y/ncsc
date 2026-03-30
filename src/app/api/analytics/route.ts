@@ -16,10 +16,10 @@ export async function GET() {
     
     // Online Logic: Users active in the last 5 minutes
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const onlineDataEntry = await prisma.user.count({ 
+    const onlineDataEntry = await (prisma.user as any).count({ 
       where: { role: "DATA_ENTRY", lastActive: { gte: fiveMinsAgo } } 
     });
-    const onlineCheckpoints = await prisma.user.count({ 
+    const onlineCheckpoints = await (prisma.user as any).count({ 
       where: { role: "CHECKPOINT", lastActive: { gte: fiveMinsAgo } } 
     });
     
@@ -33,23 +33,25 @@ export async function GET() {
       _count: { _all: true },
     });
 
-    // 3. Weekly activity (last 7 days aggregate)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    // Grouping by date in raw SQL or mapped logic since prisma groupBy by DateTime is per-second
-    const weeklyDataRaw = await prisma.person.findMany({
-      where: { createdAt: { gte: sevenDaysAgo }, deletedAt: null },
-      select: { createdAt: true }
-    });
-
-    const dailyCounts = weeklyDataRaw.reduce((acc: any, curr) => {
-      const date = curr.createdAt.toISOString().split('T')[0];
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {});
-
-    const weekly = Object.entries(dailyCounts).map(([date, count]) => ({ date, count }));
+    // 3. Weekly activity (filling gaps with 0 for a clean 7-day chart)
+    const weekly = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      const count = await prisma.person.count({
+        where: {
+          createdAt: {
+            gte: new Date(dateStr + 'T00:00:00Z'),
+            lte: new Date(dateStr + 'T23:59:59Z')
+          },
+          deletedAt: null
+        }
+      });
+      
+      weekly.push({ date: dateStr, count });
+    }
 
     return NextResponse.json({
       counters: {

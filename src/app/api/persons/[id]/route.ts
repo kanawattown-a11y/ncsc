@@ -5,6 +5,32 @@ import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/audit";
 import { analyzeSecurity } from "@/lib/intelligence";
 
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const person = await (prisma as any).person.findUnique({
+      where: { id: params.id },
+      include: { 
+        records: { where: { deletedAt: null } }, 
+        documents: { where: { deletedAt: null } } 
+      }
+    });
+
+    if (!person) return NextResponse.json({ error: "Person not found" }, { status: 404 });
+
+    const report = analyzeSecurity(person);
+    return NextResponse.json({ ...report, person });
+  } catch (error) {
+    console.error("Fetch person error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }

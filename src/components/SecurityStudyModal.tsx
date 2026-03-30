@@ -58,13 +58,30 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     try {
       setIsCapturing(true);
       
-      // Mobile optimization: scroll to top to ensure clean capture
+      // 1. Force pre-loading of the profile image to prevent canvas tainting (CORS)
+      // This part ensures images from S3 don't block canvas export.
+      if (person.photoUrl) {
+        try {
+          const res = await fetch(person.photoUrl, { mode: 'cors' });
+          if (!res.ok) throw new Error("Image fetch failed");
+          const blob = await res.blob();
+          const safeUrl = URL.createObjectURL(blob);
+          
+          // Temporary swap the src in the DOM for the capture
+          const img = reportRef.current.querySelector('img[alt="Subject"]') as HTMLImageElement;
+          if (img) img.src = safeUrl;
+        } catch (e) {
+          console.warn("Could not pre-load image for clean capture, attempting legacy mode", e);
+        }
+      }
+
       const element = reportRef.current;
       
       const canvas = await html2canvas(element, {
         backgroundColor: "#0B0F19",
         scale: 4, // ULTRA HIGH RESOLUTION (4x Pixels)
         useCORS: true,
+        allowTaint: false, // Must be false for toDataURL to work with CORS images
         logging: false,
         imageTimeout: 0,
         windowWidth: element.scrollWidth,
@@ -80,6 +97,7 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
       document.body.removeChild(link);
     } catch (err) {
       console.error("Capture failed:", err);
+      alert("عذراً، فشل التقاط الصورة بسبب قيود في المتصفح أو السيرفر. جرب إعادة تحميل الصفحة.");
     } finally {
       setIsCapturing(false);
     }

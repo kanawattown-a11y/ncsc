@@ -17,7 +17,7 @@ export default function DashboardHomePage() {
   const fetchAnalytics = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     else setIsRefreshing(true);
-    
+
     try {
       const res = await fetch("/api/analytics");
       const d = await res.json();
@@ -32,12 +32,12 @@ export default function DashboardHomePage() {
 
   useEffect(() => {
     fetchAnalytics();
-    
+
     // Tactical Polling: Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchAnalytics(true);
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -61,14 +61,35 @@ export default function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-6 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#2563EB] rounded-full mix-blend-screen filter blur-[80px] opacity-10 pointer-events-none"></div>
-        <h1 className="text-2xl font-bold text-white relative z-10">
-          مرحباً بك في القيادة الآمنة، {(session?.user as any)?.username || "المعرف"}
-        </h1>
-        <p className="text-gray-400 mt-2 relative z-10 font-sans">
-          النظام متصل وآمن. يرجى الانتباه من أن جميع العمليات مسجلة ومرصودة في السجل الأمني الموحد.
-        </p>
+      <div className="relative bg-[#111827] border border-[#1F2937] rounded-2xl p-6 sm:p-8 shadow-2xl overflow-hidden group">
+        {/* Animated Background Elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#2563EB]/10 rounded-full blur-[100px] -mr-48 -mt-48 transition-all group-hover:bg-[#2563EB]/20"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px] -ml-32 -mb-32"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#10B981]"></div>
+              <span className="text-[10px] text-green-500 font-black uppercase tracking-[0.2em]">النظام نشط والرقابة مفعلة</span>
+            </div>
+            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tighter">
+              أهلاً بك، <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">{(session?.user as any)?.username || "المعرف"}</span>
+            </h1>
+            <p className="text-gray-500 text-xs sm:text-sm mt-2 max-w-xl font-medium leading-relaxed">
+              جميع العمليات مسجلة ومرصودة في السجل الأمني الموحد لضمان أعلى معايير السلامة.
+            </p>
+          </div>
+          
+          <div className="hidden lg:flex items-center gap-3 bg-black/20 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
+             <div className="text-right">
+                <p className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">حالة الاتصال</p>
+                <p className="text-xs text-white font-mono">SECURE_TUNNEL_LOGGED</p>
+             </div>
+             <div className="p-2 bg-blue-600/20 rounded-xl border border-blue-500/30">
+                <Shield className="w-5 h-5 text-blue-500" />
+             </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -129,33 +150,33 @@ export default function DashboardHomePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-6 shadow-xl h-full flex flex-col">
-           <h3 className="text-white font-bold mb-6 flex items-center gap-2">
-             <PieChart className="w-5 h-5 text-[#2563EB]" /> تصنيف القيود الأمنية (توزيع الأنواع)
-           </h3>
-           <div className="flex-1 flex flex-col md:flex-row items-center justify-around gap-6">
-              <SecurityPieChart data={data?.distribution || []} />
-              <div className="grid grid-cols-2 gap-4 text-right">
-                {data?.distribution?.map((d: any, i: number) => (
-                  <div key={i} className="flex flex-col">
-                    <span className="text-[10px] text-gray-500 font-bold uppercase">{d.name}</span>
-                    <span className="text-white font-bold font-mono">{d.value}</span>
-                  </div>
-                ))}
-              </div>
-           </div>
+          <h3 className="text-white font-bold mb-6 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-[#2563EB]" /> تصنيف القيود الأمنية (توزيع الأنواع)
+          </h3>
+          <div className="flex-1 flex flex-col md:flex-row items-center justify-around gap-6">
+            <SecurityPieChart data={data?.distribution || []} />
+            <div className="grid grid-cols-2 gap-4 text-right">
+              {data?.distribution?.map((d: any, i: number) => (
+                <div key={i} className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">{d.name}</span>
+                  <span className="text-white font-bold font-mono">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="bg-[#111827] border border-[#1F2937] rounded-xl p-6 shadow-xl h-full flex flex-col">
-           <h3 className="text-white font-bold mb-6 flex items-center gap-2">
-             <BarChart3 className="w-5 h-5 text-[#10B981]" /> نشاط إضافة السجلات (آخر 7 أيام)
-           </h3>
-           <div className="flex-1 flex items-end w-full">
-              <SecurityBarChart data={data?.weekly || []} />
-           </div>
-           <div className="mt-4 pt-4 border-t border-[#1F2937] flex justify-between items-center text-xs">
-              <span className="text-gray-500">حالة التحديث: <span className="text-[#10B981]">فوري</span></span>
-              <span className="flex items-center gap-1 text-gray-300 font-bold"><TrendingUp className="w-3 h-3 text-[#10B981]" /> {data?.counters?.total || 0} سجل مخزن ومؤمن</span>
-           </div>
+          <h3 className="text-white font-bold mb-6 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-[#10B981]" /> نشاط إضافة السجلات (آخر 7 أيام)
+          </h3>
+          <div className="flex-1 flex items-end w-full">
+            <SecurityBarChart data={data?.weekly || []} />
+          </div>
+          <div className="mt-4 pt-4 border-t border-[#1F2937] flex justify-between items-center text-xs">
+            <span className="text-gray-500">حالة التحديث: <span className="text-[#10B981]">فوري</span></span>
+            <span className="flex items-center gap-1 text-gray-300 font-bold"><TrendingUp className="w-3 h-3 text-[#10B981]" /> {data?.counters?.total || 0} سجل مخزن ومؤمن</span>
+          </div>
         </div>
       </div>
     </div>
