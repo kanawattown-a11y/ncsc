@@ -100,7 +100,24 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[70] flex justify-center items-end sm:items-center p-0 sm:p-4">
       <div className="bg-[#0B0F19] border-t-2 sm:border-2 border-[#1F2937] rounded-t-2xl sm:rounded-none w-full sm:max-w-3xl shadow-[0_0_100px_rgba(37,99,235,0.2)] relative flex flex-col max-h-[95dvh] sm:max-h-[95vh] overflow-hidden">
         
-        <div ref={reportRef} className="flex flex-col bg-[#0B0F19] overflow-y-auto sm:overflow-visible">
+        <div 
+          ref={reportRef} 
+          dir="rtl"
+          className="flex flex-col bg-[#0B0F19] overflow-y-auto text-right"
+          style={{ 
+            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            letterSpacing: '0', 
+            textRendering: 'optimizeLegibility'
+          }}
+        >
+          {/* Internal style block to force html2canvas to join Arabic letters */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            [ref="reportRef"] *, .report-content * { 
+              letter-spacing: 0px !important; 
+              word-spacing: normal !important;
+              font-feature-settings: "kern" 1;
+            }
+          `}} />
           {/* Official Header */}
           <div className="p-4 sm:p-8 border-b-2 border-[#1F2937] flex justify-between items-start bg-gradient-to-b from-[#111827] to-transparent shrink-0">
             <div className="flex gap-3 sm:gap-6 items-center min-w-0">
@@ -108,8 +125,7 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
                   <Shield className="w-8 h-8 sm:w-16 sm:h-16 text-blue-500 opacity-50" />
                </div>
                <div className="min-w-0">
-                  <h1 className="text-base sm:text-2xl font-black text-white tracking-widest uppercase leading-tight">المركز الوطني للمعلومات الأمني
-                    <span className="hidden sm:inline">ة المركزية</span>
+                  <h1 className="text-lg sm:text-2xl font-black text-white tracking-widest uppercase leading-tight">المركز الوطني للمعلومات الأمنية المركزية
                   </h1>
                   <p className="text-blue-500 font-mono text-[9px] sm:text-xs mt-0.5 sm:mt-1 font-bold tracking-widest">NCSC // OFFICIAL SECURITY DOSSIER</p>
                   <div className="mt-2 inline-flex items-center gap-2 px-2 py-0.5 bg-blue-600/10 border border-blue-600/30 text-blue-400 text-[9px] font-bold rounded-full">
@@ -182,15 +198,20 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
                 )}
              </div>
 
-             {/* Final Decision Panel */}
-             <div className={`mt-6 sm:mt-12 p-4 sm:p-8 border-2 ${ui.border} ${ui.bg} rounded-xl`}>
-                <div className="flex items-center gap-3 sm:gap-6 relative z-10">
-                   <div className={`${ui.color} p-3 sm:p-4 bg-[#0B0F19] border ${ui.border} rounded-xl sm:rounded-2xl shadow-xl`}>
+             {/* Final Decision Panel - Redesigned for html2canvas clarity */}
+             <div className={`mt-8 sm:mt-16 p-6 sm:p-10 border-2 ${ui.border} ${ui.bg} rounded-2xl relative`}>
+                {/* Visual Label */}
+                <div className="absolute -top-4 right-8 bg-[#0B0F19] px-4 py-1 border-x-2 border-t-2 rounded-t-lg">
+                   <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">قرار اللجنة الأمنية المركزية</p>
+                </div>
+
+                <div className="flex items-center gap-4 sm:gap-10">
+                   <div className={`${ui.color} p-4 sm:p-6 bg-[#0B0F19] border-2 ${ui.border} rounded-2xl shadow-2xl`}>
                       {ui.icon}
                    </div>
-                   <div className="min-w-0">
-                      <h2 className="text-[10px] font-bold uppercase tracking-widest mb-1 sm:mb-2 opacity-60">التوصية الأمنية الرسمية</h2>
-                      <p className={`text-xl sm:text-3xl font-black ${ui.color} tracking-tighter leading-tight`}>{ui.label}</p>
+                   <div className="flex-1">
+                      <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] mb-2 text-gray-500 opacity-80 leading-none">توصية الاعتماد النهائي</h2>
+                      <p className={`text-2xl sm:text-4xl font-black ${ui.color} tracking-tighter leading-none`}>{ui.label}</p>
                    </div>
                 </div>
              </div>
@@ -198,7 +219,7 @@ export default function SecurityStudyModal({ person, onClose, intelligence }: Se
         </div>
 
         {/* Footer Actions */}
-        <div className="p-3 sm:p-6 bg-[#111827] border-t-2 border-[#1F2937] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div className="p-4 sm:p-8 bg-[#111827] border-t-2 border-[#1F2937] flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
            <p className="text-[8px] sm:text-[10px] text-gray-600 font-mono tracking-widest text-center sm:text-right uppercase">CONFIDENTIAL // NCSC INTEL CORE 7</p>
            <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
               <button 
